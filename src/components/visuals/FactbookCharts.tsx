@@ -428,3 +428,201 @@ export function HorizontalDataBarChart({
     </div>
   );
 }
+
+export function PriceDiscountChart({
+  items,
+  unit = "만원",
+}: {
+  items: Array<{
+    label: string;
+    list_price: number;
+    sale_price: number;
+    discount_pct?: number;
+  }>;
+  unit?: string;
+}) {
+  if (!items || items.length === 0) {
+    return (
+      <div className="flex h-44 items-center justify-center rounded-[8px] border border-dashed border-[#D4D4D4] bg-[#FAFAFA] text-[12px] text-[#8C8C8C]">
+        수집된 정가·할인가 비교 데이터가 없습니다.
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-56 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={items}
+          layout="vertical"
+          margin={{ top: 6, right: 24, left: 10, bottom: 4 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" horizontal={false} />
+          <XAxis
+            type="number"
+            tick={{ fontSize: 12, fill: "#4A4A4A" }}
+            unit={unit}
+            axisLine={{ stroke: "#E5E5E5" }}
+            tickLine={false}
+          />
+          <YAxis
+            type="category"
+            dataKey="label"
+            width={112}
+            tick={{ fontSize: 12, fill: "#111111", fontWeight: 600 }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "#FFFFFF",
+              borderColor: "#D4D4D4",
+              borderRadius: "8px",
+              fontSize: "12px",
+            }}
+            formatter={(val, name) => [
+              `${Number(val ?? 0).toLocaleString()} ${unit}`,
+              name === "list_price" ? "공식 정가" : "실판매/할인가",
+            ]}
+          />
+          <Legend
+            wrapperStyle={{ fontSize: "12px" }}
+            formatter={(val) => (val === "list_price" ? "공식 정가" : "실판매/할인가")}
+          />
+          <Bar dataKey="list_price" fill="#D4D4D4" radius={[0, 4, 4, 0]} barSize={10} />
+          <Bar dataKey="sale_price" fill="#E9501F" radius={[0, 4, 4, 0]} barSize={10} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export function PressMonthlyChart({
+  items,
+}: {
+  items: Array<{ label: string; value: number; highlight?: boolean }>;
+}) {
+  if (!items || items.length === 0) {
+    return (
+      <div className="flex h-44 items-center justify-center rounded-[8px] border border-dashed border-[#D4D4D4] bg-[#FAFAFA] text-[12px] text-[#8C8C8C]">
+        집계된 월별 언론 보도 데이터가 없습니다.
+      </div>
+    );
+  }
+  const peakVal = Math.max(...items.map((i) => Number(i.value || 0)), 0);
+
+  return (
+    <div className="h-52 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={items} margin={{ top: 8, right: 16, left: -12, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" vertical={false} />
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 12, fill: "#4A4A4A" }}
+            axisLine={{ stroke: "#E5E5E5" }}
+            tickLine={false}
+          />
+          <YAxis
+            allowDecimals={false}
+            tick={{ fontSize: 12, fill: "#4A4A4A" }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "#FFFFFF",
+              borderColor: "#D4D4D4",
+              borderRadius: "8px",
+              fontSize: "12px",
+            }}
+            formatter={(value) => [`${Number(value ?? 0)}건`, "언론 보도량"]}
+          />
+          <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={26}>
+            {items.map((entry, idx) => (
+              <Cell
+                key={`${entry.label}-${idx}`}
+                fill={entry.value === peakVal && peakVal > 0 ? "#E9501F" : "#111111"}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export function PressBrandCompareChart({
+  items,
+}: {
+  items: Array<{ label: string; value: number; highlight?: boolean }>;
+}) {
+  return <HorizontalDataBarChart items={items} unit="건" />;
+}
+
+export function MarketingHeatmapChart({
+  brands,
+  rows,
+}: {
+  brands: string[];
+  rows: Array<{
+    axis: string;
+    scores: Array<{ brand: string; score: number }>;
+  }>;
+}) {
+  if (!rows || rows.length === 0 || !brands || brands.length === 0) {
+    return (
+      <div className="flex h-44 items-center justify-center rounded-[8px] border border-dashed border-[#D4D4D4] bg-[#FAFAFA] text-[12px] text-[#8C8C8C]">
+        마케팅 활동 강도 히트맵 데이터가 없습니다.
+      </div>
+    );
+  }
+
+  const scoreStyle = (score: number): { bg: string; text: string; label: string } => {
+    if (score >= 5) return { bg: "#E9501F", text: "#FFFFFF", label: "5 · 최상" };
+    if (score === 4) return { bg: "#F48A66", text: "#111111", label: "4 · 높음" };
+    if (score === 3) return { bg: "#111111", text: "#FFFFFF", label: "3 · 보통" };
+    if (score === 2) return { bg: "#E5E5E5", text: "#111111", label: "2 · 제한" };
+    return { bg: "#FAFAFA", text: "#8C8C8C", label: "1 · 미미" };
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-[12px]">
+        <thead>
+          <tr className="border-b border-[#E5E5E5]">
+            <th className="py-2 pr-3 text-left font-bold text-[#111111]">마케팅 6분류</th>
+            {brands.map((b) => (
+              <th key={b} className="px-2 py-2 text-center font-bold text-[#111111]">
+                {b}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[#E5E5E5]">
+          {rows.map((row) => (
+            <tr key={row.axis}>
+              <td className="py-2 pr-3 font-semibold text-[#111111] whitespace-nowrap">
+                {row.axis}
+              </td>
+              {brands.map((b, idx) => {
+                const matched = row.scores.find((s) => s.brand === b) ?? row.scores[idx];
+                const sc = Number(matched?.score ?? 1);
+                const st = scoreStyle(sc);
+                return (
+                  <td key={`${row.axis}-${b}`} className="p-1.5 text-center">
+                    <div
+                      className="mx-auto flex h-7 min-w-[74px] items-center justify-center rounded-[6px] border border-[#E5E5E5] px-2 font-bold tabular-nums"
+                      style={{ backgroundColor: st.bg, color: st.text }}
+                    >
+                      {st.label}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
