@@ -1,0 +1,65 @@
+name: harness-check
+
+# 하네스(docs/harness/workflow.md §5)의 PR 규칙을 자동으로 검사한다.
+#  - 브랜치명: <type>/<이슈번호>
+#  - PR 제목:  <type>: <요약> (#<이슈번호>)
+#  - 본문:     `Closes #<이슈번호>` 줄 + ## 작업 내용 / 수정 파일 / 검증 / 그 외 (모두 비어 있지 않을 것)
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const types = 'feat|fix|refactor|docs|chore|test|style|perf';
+            const errors = [];
+
+            const head = pr.head.ref;
+            const m = head.match(new RegExp(`^(${types})/([1-9][0-9]*)$`));
+            if (!m) {
+              errors.push(`브랜치명 '${head}' 이(가) '<type>/<이슈번호>' 형식이 아닙니다. (type: ${types.replaceAll('|', ', ')})`);
+            }
+
+            const title = pr.title || '';
+            if (!new RegExp(`^(${types}): .+ \\(#[1-9][0-9]*\\)$`).test(title)) {
+              errors.push(`PR 제목 '${title}' 이(가) '<type>: <요약> (#<이슈번호>)' 형식이 아닙니다.`);
+            }
+
+            const body = pr.body || '';
+            if (m) {
+              const n = m[2];
+              if (!new RegExp(`^\\s*(closes|fixes|resolves) #${n}\\s*$`, 'im').test(body)) {
+                errors.push(`PR 본문에 'Closes #${n}' 줄이 없습니다. (브랜치 번호와 같아야 합니다)`);
+              }
+              if (!title.endsWith(`(#${n})`)) {
+                errors.push(`PR 제목 끝이 '(#${n})' 이(가) 아닙니다. (브랜치 번호와 같아야 합니다)`);
+              }
+            }
+
+            const sections = {};
+            let cur = null;
+            for (const line of body.split(/\r?\n/)) {
+              const h = line.match(/^##\s+(.+?)\s*$/);
+              if (h) { cur = h[1]; sections[cur] = []; continue; }
+              if (cur) sections[cur].push(line);
+            }
+            for (const name of ['작업 내용', '수정 파일', '검증', '그 외']) {
+              const text = (sections[name] || []).join('\n').replace(/<!--[\s\S]*?-->/g, '').trim();
+              if (!text) errors.push(`'## ${name}' 섹션이 없거나 비어 있습니다.`);
+            }
+
+            if (errors.length) {
+              core.setFailed(errors.map((e) => `- ${e}`).join('\n'));
+            } else {
+              core.info('harness-check: OK');
+            }

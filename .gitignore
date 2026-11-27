@@ -1,0 +1,18 @@
+# Node / Next.js
+node_modules/
+.next/
+out/
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+# Secrets & local env — 절대 커밋 금지 (.env.example 만 추적)
+.env
+.env.*
+!.env.example
+
+# Logs & OS / IDE
+*.log
+npm-debug.log*
+.DS_Store
+.idea/
+.vscode/
