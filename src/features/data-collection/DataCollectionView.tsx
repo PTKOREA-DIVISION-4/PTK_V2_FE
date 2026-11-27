@@ -26,6 +26,7 @@ import {
   DataLabTrendChart,
 } from "@/components/visuals/FactbookCharts";
 import { AsyncActionButton } from "@/components/ui/AsyncActionButton";
+import { ChannelBadge, ChannelGlyph, normalizeChannelKey } from "@/components/ui/ChannelBadge";
 import { stripMarkdownInline } from "@/components/ui/MarkdownContent";
 import { SourceViewerDrawer } from "@/components/ui/SourceViewerDrawer";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -735,9 +736,7 @@ export function DataCollectionView({
                           </StatusBadge>
                         </td>
                         <td className="px-3 py-3 align-top">
-                          <span className="inline-block rounded-[6px] bg-[#F5F5F5] px-2 py-0.5 text-[11px] font-medium text-[#4A4A4A]">
-                            {src.channel}
-                          </span>
+                          <ChannelBadge channel={src.channel} compact />
                         </td>
                         <td className="px-3 py-3 align-top">
                           <button
@@ -1096,7 +1095,7 @@ export function DataCollectionView({
                                 <span
                                   className={`inline-flex items-center gap-1.5 rounded-[6px] border px-2.5 py-1 text-xs font-bold ${platMeta.pillClass}`}
                                 >
-                                  <PlatIcon className="h-3.5 w-3.5" />
+                                  <ChannelGlyph channelKey={normalizeChannelKey(lane.platform)} size={14} />
                                   {platMeta.label}
                                 </span>
                                 <span className="text-[13px] font-semibold text-[#111111]">

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { ExternalLink } from "lucide-react";
+import { ChannelBadge } from "@/components/ui/ChannelBadge";
 import {
   InlineMarkdown,
   MarkdownDocument,
@@ -33,12 +34,15 @@ export function SourceViewerDrawer({
       {source && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-[#E5E5E5] bg-[#FAFAFA] px-3.5 py-2.5 text-xs text-[#4A4A4A]">
-            <span>
-              수집일:{" "}
-              <strong className="text-[#111111]">
-                {source.published_at ?? "-"}
-              </strong>
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <ChannelBadge channel={source.channel || source.provider} compact />
+              <span>
+                수집일:{" "}
+                <strong className="text-[#111111]">
+                  {source.published_at ?? "-"}
+                </strong>
+              </span>
+            </div>
             {source.source_url && (
               <a
                 href={source.source_url}
