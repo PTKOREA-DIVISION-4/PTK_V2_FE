@@ -134,12 +134,13 @@ function makeIdleJob(projectId: string): JobStatusResponse {
     progress_pct: 0,
     logs: [],
     subtasks: [
-      { id: "st-1", subtask_key: "perplexity_research", label: "거시 시장·규제·자사/경쟁 기초 리서치 (Perplexity)", status: "PENDING", progress_pct: 0, collected_count: 0 },
+      { id: "st-1", subtask_key: "perplexity_research", label: "거시 시장·규제·자사/경쟁 1:1·벤치마크 리서치 (Perplexity)", status: "PENDING", progress_pct: 0, collected_count: 0 },
       { id: "st-2", subtask_key: "naver_datalab", label: "네이버 데이터랩 검색어 트렌드·쇼핑 인사이트 정량 수집", status: "PENDING", progress_pct: 0, collected_count: 0 },
       { id: "st-3", subtask_key: "sns_official_top5", label: "자사·경쟁사 공식 SNS 채널 지표 및 기간 내 TOP 5 추출", status: "PENDING", progress_pct: 0, collected_count: 0 },
       { id: "st-4", subtask_key: "creator_collab", label: "크리에이터 협업 콘텐츠 및 시딩 레퍼런스 수집", status: "PENDING", progress_pct: 0, collected_count: 0 },
       { id: "st-5", subtask_key: "community_voc", label: "국내 커뮤니티·블로그·카페·리뷰 실소비자 VOC 수집", status: "PENDING", progress_pct: 0, collected_count: 0 },
-      { id: "st-6", subtask_key: "media_archiving", label: "참조 이미지·영상 주요 장면 스크린샷 로컬 아카이빙", status: "PENDING", progress_pct: 0, collected_count: 0 },
+      { id: "st-6", subtask_key: "news_press", label: "자사·경쟁사 언론 보도 기사 및 월별·주제별 PR 동향 수집", status: "PENDING", progress_pct: 0, collected_count: 0 },
+      { id: "st-7", subtask_key: "media_archiving", label: "참조 이미지·영상 주요 장면 스크린샷 로컬 아카이빙", status: "PENDING", progress_pct: 0, collected_count: 0 },
     ],
   };
 }
@@ -386,6 +387,7 @@ export function FactbookProvider({ children }: { children: React.ReactNode }) {
         return factbookApi.getJob(jobId);
       }
       activePollsRef.current.add(jobId);
+      let lastCompletedCount = -1;
       try {
         while (true) {
           const job = await factbookApi.getJob(jobId);
@@ -397,6 +399,45 @@ export function FactbookProvider({ children }: { children: React.ReactNode }) {
           if (TERMINAL_JOB_STATUSES.has(job.status)) {
             await ensureProjectLoaded(projectId, true);
             return job;
+          }
+          const completedNow = job.subtasks.filter(
+            (st) => st.status === "COMPLETED"
+          ).length;
+          if (completedNow > lastCompletedCount && completedNow > 0) {
+            lastCompletedCount = completedNow;
+            void Promise.allSettled([
+              factbookApi.listSources(projectId, 200),
+              factbookApi.getDatalab(projectId),
+              factbookApi.getSnsTop5(projectId),
+            ]).then(([srcRes, dlRes, snsRes]) => {
+              setBundles((prev) =>
+                prev.map((b) => {
+                  if (b.project.id !== projectId) return b;
+                  const nextSources =
+                    srcRes.status === "fulfilled"
+                      ? mapSourceItems(srcRes.value)
+                      : b.sources;
+                  const nextDl =
+                    dlRes.status === "fulfilled"
+                      ? [...dlRes.value.search_trends, ...dlRes.value.shopping_insights]
+                      : b.datalab;
+                  const nextSns =
+                    snsRes.status === "fulfilled"
+                      ? [
+                          ...mapSnsPosts(projectId, snsRes.value.own_top_posts),
+                          ...mapSnsPosts(projectId, snsRes.value.competitor_top_posts),
+                          ...mapSnsPosts(projectId, snsRes.value.creator_collabs),
+                        ]
+                      : b.sns_top_posts;
+                  return {
+                    ...b,
+                    sources: nextSources,
+                    datalab: nextDl,
+                    sns_top_posts: nextSns,
+                  };
+                })
+              );
+            });
           }
           await new Promise((r) => setTimeout(r, 1500));
         }
