@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Globe, Newspaper } from "lucide-react";
 
 export type ChannelKey =
   | "instagram"
@@ -22,7 +23,7 @@ interface ChannelMeta {
   bg: string;
   border: string;
   text: string;
-  glyph: string;
+  iconSrc?: string;
 }
 
 export const CHANNEL_META: Record<ChannelKey, ChannelMeta> = {
@@ -32,7 +33,7 @@ export const CHANNEL_META: Record<ChannelKey, ChannelMeta> = {
     bg: "#FDF2F8",
     border: "#FBCFE8",
     text: "#9D174D",
-    glyph: "IG",
+    iconSrc: "/icons/channels/instagram.png",
   },
   youtube: {
     key: "youtube",
@@ -40,7 +41,7 @@ export const CHANNEL_META: Record<ChannelKey, ChannelMeta> = {
     bg: "#FEF2F2",
     border: "#FECACA",
     text: "#B91C1C",
-    glyph: "YT",
+    iconSrc: "/icons/channels/youtube.png",
   },
   naver_blog: {
     key: "naver_blog",
@@ -48,7 +49,7 @@ export const CHANNEL_META: Record<ChannelKey, ChannelMeta> = {
     bg: "#ECFDF5",
     border: "#A7F3D0",
     text: "#047857",
-    glyph: "B",
+    iconSrc: "/icons/channels/naver_blog.png",
   },
   naver_cafe: {
     key: "naver_cafe",
@@ -56,7 +57,7 @@ export const CHANNEL_META: Record<ChannelKey, ChannelMeta> = {
     bg: "#F0FDF4",
     border: "#BBF7D0",
     text: "#15803D",
-    glyph: "C",
+    iconSrc: "/icons/channels/naver_cafe.png",
   },
   naver_datalab: {
     key: "naver_datalab",
@@ -64,7 +65,7 @@ export const CHANNEL_META: Record<ChannelKey, ChannelMeta> = {
     bg: "#ECFDF5",
     border: "#A7F3D0",
     text: "#065F46",
-    glyph: "N",
+    iconSrc: "/icons/channels/naver_datalab.png",
   },
   dcinside: {
     key: "dcinside",
@@ -72,7 +73,7 @@ export const CHANNEL_META: Record<ChannelKey, ChannelMeta> = {
     bg: "#EFF6FF",
     border: "#BFDBFE",
     text: "#1D4ED8",
-    glyph: "DC",
+    iconSrc: "/icons/channels/dcinside.png",
   },
   fmkorea: {
     key: "fmkorea",
@@ -80,7 +81,7 @@ export const CHANNEL_META: Record<ChannelKey, ChannelMeta> = {
     bg: "#EFF6FF",
     border: "#BFDBFE",
     text: "#1E40AF",
-    glyph: "FM",
+    iconSrc: "/icons/channels/fmkorea.png",
   },
   theqoo: {
     key: "theqoo",
@@ -88,7 +89,7 @@ export const CHANNEL_META: Record<ChannelKey, ChannelMeta> = {
     bg: "#F5F3FF",
     border: "#DDD6FE",
     text: "#6D28D9",
-    glyph: "Q",
+    iconSrc: "/icons/channels/theqoo.png",
   },
   clien: {
     key: "clien",
@@ -96,7 +97,7 @@ export const CHANNEL_META: Record<ChannelKey, ChannelMeta> = {
     bg: "#F0FDFA",
     border: "#99F6E4",
     text: "#0F766E",
-    glyph: "CL",
+    iconSrc: "/icons/channels/clien.png",
   },
   news_press: {
     key: "news_press",
@@ -104,7 +105,6 @@ export const CHANNEL_META: Record<ChannelKey, ChannelMeta> = {
     bg: "#F5F5F5",
     border: "#D4D4D4",
     text: "#111111",
-    glyph: "NWS",
   },
   perplexity_research: {
     key: "perplexity_research",
@@ -112,7 +112,7 @@ export const CHANNEL_META: Record<ChannelKey, ChannelMeta> = {
     bg: "#ECFEFF",
     border: "#A5F3FC",
     text: "#0E7490",
-    glyph: "AI",
+    iconSrc: "/icons/channels/perplexity_research.png",
   },
   official: {
     key: "official",
@@ -120,7 +120,6 @@ export const CHANNEL_META: Record<ChannelKey, ChannelMeta> = {
     bg: "#FFF3EE",
     border: "#F9C8B8",
     text: "#C2410C",
-    glyph: "OFF",
   },
 };
 
@@ -141,64 +140,24 @@ export function normalizeChannelKey(raw?: string | null): ChannelKey {
 }
 
 export function ChannelGlyph({ channelKey, size = 16 }: { channelKey: ChannelKey; size?: number }) {
-  if (channelKey === "instagram") {
+  const meta = CHANNEL_META[channelKey];
+  if (meta.iconSrc) {
     return (
-      <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="shrink-0">
-        <defs>
-          <linearGradient id="igGrad" x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0%" stopColor="#F58529" />
-            <stop offset="50%" stopColor="#DD2A7B" />
-            <stop offset="100%" stopColor="#8134AF" />
-          </linearGradient>
-        </defs>
-        <rect x="1.5" y="1.5" width="21" height="21" rx="6" fill="url(#igGrad)" />
-        <rect x="6" y="6" width="12" height="12" rx="3.5" fill="none" stroke="#FFFFFF" strokeWidth="1.8" />
-        <circle cx="12" cy="12" r="2.8" fill="none" stroke="#FFFFFF" strokeWidth="1.8" />
-        <circle cx="15.8" cy="8.2" r="1" fill="#FFFFFF" />
-      </svg>
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={meta.iconSrc}
+        alt=""
+        width={size}
+        height={size}
+        style={{ width: size, height: size }}
+        className="shrink-0 rounded-[4px] object-contain"
+      />
     );
   }
-  if (channelKey === "youtube") {
-    return (
-      <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="shrink-0">
-        <rect x="1.5" y="4" width="21" height="16" rx="4.5" fill="#DC2626" />
-        <polygon points="10,8.5 16.5,12 10,15.5" fill="#FFFFFF" />
-      </svg>
-    );
+  if (channelKey === "news_press") {
+    return <Newspaper style={{ width: size, height: size }} className="shrink-0 text-[#111111]" aria-hidden="true" />;
   }
-  const colorMap: Record<ChannelKey, string> = {
-    instagram: "#DD2A7B",
-    youtube: "#DC2626",
-    naver_blog: "#03C75A",
-    naver_cafe: "#029E47",
-    naver_datalab: "#03C75A",
-    dcinside: "#1D4ED8",
-    fmkorea: "#2563EB",
-    theqoo: "#7C3AED",
-    clien: "#0F766E",
-    news_press: "#111111",
-    perplexity_research: "#0E7490",
-    official: "#E9501F",
-  };
-  const glyph = CHANNEL_META[channelKey].glyph;
-  const fs = glyph.length >= 3 ? 7 : glyph.length === 2 ? 9 : 11;
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="shrink-0">
-      <rect x="1.5" y="1.5" width="21" height="21" rx="6" fill={colorMap[channelKey]} />
-      <text
-        x="12"
-        y="12.5"
-        textAnchor="middle"
-        dominantBaseline="central"
-        fill="#FFFFFF"
-        fontSize={fs}
-        fontWeight="800"
-        fontFamily="Pretendard, sans-serif"
-      >
-        {glyph}
-      </text>
-    </svg>
-  );
+  return <Globe style={{ width: size, height: size }} className="shrink-0 text-[#E9501F]" aria-hidden="true" />;
 }
 
 export function ChannelBadge({
@@ -215,7 +174,7 @@ export function ChannelBadge({
   const displayLabel = labelOverride ?? meta.label;
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-[6px] border px-2 py-0.5 text-[12px] font-semibold leading-none"
+      className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[6px] border px-2 py-1 text-[12px] font-semibold leading-none"
       style={{
         backgroundColor: meta.bg,
         borderColor: meta.border,
@@ -223,8 +182,8 @@ export function ChannelBadge({
       }}
       title={displayLabel}
     >
-      <ChannelGlyph channelKey={key} size={compact ? 14 : 15} />
-      <span>{displayLabel}</span>
+      <ChannelGlyph channelKey={key} size={compact ? 14 : 16} />
+      <span className="whitespace-nowrap">{displayLabel}</span>
     </span>
   );
 }

@@ -483,7 +483,9 @@ export function SlideCanvas({
                         {trimmed}
                       </span>
                     ) : isChannelCol && isRecognizedChannelLabel(trimmed) ? (
-                      <ChannelBadge channel={trimmed} labelOverride={trimmed} compact />
+                      <div className="whitespace-nowrap">
+                        <ChannelBadge channel={trimmed} labelOverride={trimmed} compact />
+                      </div>
                     ) : (
                       trimmed
                     )}
