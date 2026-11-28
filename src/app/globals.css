@@ -68,6 +68,27 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #efefef 25%, #fafafa 50%, #efefef 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.45s ease-in-out infinite;
+}
+
+.progress-bar-shimmer {
+  background: linear-gradient(90deg, #e9501f 0%, #f47c54 50%, #e9501f 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.2s linear infinite;
+}
+
 /* Custom sleek scrollbars */
 ::-webkit-scrollbar {
   width: 6px;

@@ -88,6 +88,10 @@ export function StudioShell({ projectId }: { projectId: string }) {
     );
   }
 
+  const isCollecting =
+    bundle.last_job.status === "RUNNING" ||
+    (bundle.last_job.status === "PENDING" && !bundle.last_job.id.startsWith("idle-"));
+
   const handleOpenSlideFromOtherMode = (slideId: string) => {
     setSelectedSlideId(slideId);
     setMode("REVIEW");
@@ -170,13 +174,19 @@ export function StudioShell({ projectId }: { projectId: string }) {
                   key={tab.key}
                   type="button"
                   onClick={() => setMode(tab.key)}
-                  className={`flex h-full shrink-0 items-center border-b-2 px-3 text-[13px] transition-colors cursor-pointer ${
+                  className={`flex h-full shrink-0 items-center gap-1.5 border-b-2 px-3 text-[13px] transition-colors cursor-pointer ${
                     active
                       ? "border-[#111111] font-semibold text-[#111111]"
                       : "border-transparent font-medium text-[#4A4A4A] hover:text-[#111111]"
                   }`}
                 >
-                  {tab.label}
+                  <span>{tab.label}</span>
+                  {tab.key === "COLLECT" && isCollecting && (
+                    <span className="inline-flex items-center gap-1 rounded-[5px] border border-[#F9C8B8] bg-[#FFF3EE] px-1.5 py-0.5 text-[10px] font-bold text-[#E9501F] tabular-nums">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#E9501F]" />
+                      수집 중 {bundle.last_job.progress_pct}%
+                    </span>
+                  )}
                 </button>
               );
             })}

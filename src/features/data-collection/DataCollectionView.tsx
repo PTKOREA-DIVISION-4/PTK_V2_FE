@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
   Check,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   ExternalLink,
   Eye,
   Filter,
@@ -32,6 +30,13 @@ import { SourceViewerDrawer } from "@/components/ui/SourceViewerDrawer";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useToast } from "@/components/ui/ToastProvider";
+import {
+  CollectionProgressPanel,
+  DataLabSkeleton,
+  SnsTop5Skeleton,
+  SourcesRefreshingBanner,
+  SourcesTableSkeleton,
+} from "@/features/data-collection/CollectionLoadingState";
 import { useFactbookStore } from "@/lib/store";
 import {
   SECTION_LABELS,
@@ -104,9 +109,22 @@ export function DataCollectionView({
   const { pushToast } = useToast();
 
   const [subTab, setSubTab] = useState<PoolSubTab>("SOURCES");
+  const [isTriggeringCollection, setIsTriggeringCollection] = useState(false);
+
+  const isCollecting =
+    isTriggeringCollection ||
+    bundle.last_job.status === "RUNNING" ||
+    (bundle.last_job.status === "PENDING" && !bundle.last_job.id.startsWith("idle-"));
+
   const [jobExpanded, setJobExpanded] = useState<boolean>(
-    bundle.last_job.status !== "COMPLETED"
+    isCollecting || bundle.last_job.status !== "COMPLETED"
   );
+
+  useEffect(() => {
+    if (isCollecting) {
+      setJobExpanded(true);
+    }
+  }, [isCollecting]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sectionFilter, setSectionFilter] = useState<SectionCode | "ALL">("ALL");
@@ -333,21 +351,31 @@ export function DataCollectionView({
 
   const handleRetryFailed = async () => {
     const keys = failedSubtasks.map((st) => st.subtask_key);
-    await runCollectionSimulation(bundle.project.id, keys);
-    pushToast({
-      tone: "success",
-      title: "실패 항목 재수집 완료",
-      description: "신규 수집 원문과 분석 지표가 자료 풀에 반영되었습니다.",
-    });
+    setIsTriggeringCollection(true);
+    try {
+      await runCollectionSimulation(bundle.project.id, keys);
+      pushToast({
+        tone: "success",
+        title: "실패 항목 재수집 완료",
+        description: "신규 수집 원문과 분석 지표가 자료 풀에 반영되었습니다.",
+      });
+    } finally {
+      setIsTriggeringCollection(false);
+    }
   };
 
   const handleFullRecollect = async () => {
-    await runCollectionSimulation(bundle.project.id);
-    pushToast({
-      tone: "success",
-      title: "전체 수집 파이프라인 재실행 완료",
-      description: "웹 리서치 · 네이버 데이터랩 · SNS TOP 5가 최신화되었습니다.",
-    });
+    setIsTriggeringCollection(true);
+    try {
+      await runCollectionSimulation(bundle.project.id);
+      pushToast({
+        tone: "success",
+        title: "전체 수집 파이프라인 재실행 완료",
+        description: "웹 리서치 · 네이버 데이터랩 · SNS TOP 5가 최신화되었습니다.",
+      });
+    } finally {
+      setIsTriggeringCollection(false);
+    }
   };
 
   const handleGenerateSlides = async () => {
@@ -370,52 +398,21 @@ export function DataCollectionView({
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-4 px-6 py-5">
-      {/* Job Progress Monitor */}
-      <section className="rounded-[12px] border border-[#E5E5E5] bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <StatusBadge
-              tone={
-                bundle.last_job.status === "COMPLETED"
-                  ? "teal"
-                  : bundle.last_job.status === "PARTIAL_SUCCESS"
-                    ? "amber"
-                    : "coral"
-              }
-              dot
-            >
-              {bundle.last_job.status === "COMPLETED"
-                ? "수집 완료"
-                : bundle.last_job.status === "PARTIAL_SUCCESS"
-                  ? `부분 완료 (${failedSubtasks.length}개 재시도 권장)`
-                  : "수집 진행/오류"}
-            </StatusBadge>
-            <div className="text-[13px] font-medium text-[#111111]">
-              진행률{" "}
-              <span className="font-semibold tabular-nums">
-                {bundle.last_job.progress_pct}%
-              </span>
-              <span className="mx-2 text-[#E5E5E5]">|</span>
-              <span className="text-xs text-[#4A4A4A]">
-                총 원문 {facets.total}건 · 승인{" "}
-                <strong className="text-[#1F8A5B]">
-                  {facets.by_review_status.APPROVED ?? 0}
-                </strong>
-                건 · 대기{" "}
-                <strong className="text-[#C26B00]">
-                  {facets.by_review_status.PENDING ?? 0}
-                </strong>
-                건
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+      {/* Live Collection Progress Monitor */}
+      <CollectionProgressPanel
+        job={bundle.last_job}
+        facets={facets}
+        isCollecting={isCollecting}
+        expanded={jobExpanded}
+        onToggleExpand={() => setJobExpanded((v) => !v)}
+        actions={
+          <>
             {failedSubtasks.length > 0 && (
               <AsyncActionButton
                 variant="secondary"
                 size="sm"
                 loadingText="재수집 중..."
+                disabled={isCollecting}
                 onAction={handleRetryFailed}
                 className="border-[#F5D8A8] bg-[#FFFBEB] text-[#C26B00] hover:bg-[#FEF3C7]"
               >
@@ -427,75 +424,26 @@ export function DataCollectionView({
               variant="secondary"
               size="sm"
               loadingText="전체 재수집 중..."
+              disabled={isCollecting}
               onAction={handleFullRecollect}
             >
-              <RefreshCw className="h-3.5 w-3.5 shrink-0" />
-              전체 재수집
+              <RefreshCw className={`h-3.5 w-3.5 shrink-0 ${isCollecting ? "animate-spin" : ""}`} />
+              {isCollecting ? "수집 실행 중" : "전체 재수집"}
             </AsyncActionButton>
             <AsyncActionButton
               variant="primary"
               size="sm"
               loadingText="장표 생성 중..."
+              disabled={isCollecting}
               onAction={handleGenerateSlides}
+              title={isCollecting ? "자료 수집이 끝난 뒤 장표를 생성할 수 있습니다." : undefined}
             >
               장표 초안 (재)생성
               <ArrowRight className="h-3.5 w-3.5 shrink-0" />
             </AsyncActionButton>
-            <button
-              type="button"
-              onClick={() => setJobExpanded((v) => !v)}
-              className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-[8px] px-2.5 text-xs font-medium text-[#4A4A4A] hover:bg-[#F5F5F5] cursor-pointer"
-            >
-              세부 작업
-              {jobExpanded ? (
-                <ChevronUp className="h-3.5 w-3.5 shrink-0" />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5 shrink-0" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {jobExpanded && (
-          <div className="border-t border-[#E5E5E5] bg-[#FAFAFA] px-4 py-3.5">
-            <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-              {bundle.last_job.subtasks.map((st) => (
-                <div
-                  key={st.id}
-                  className={`flex items-start justify-between gap-2 rounded-[8px] border px-3 py-2 ${
-                    st.status === "FAILED"
-                      ? "border-[#FECACA] bg-[#FEF2F2]"
-                      : "border-[#E5E5E5] bg-white"
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-[#111111]">
-                      {st.status === "COMPLETED" ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#1F8A5B]" />
-                      ) : (
-                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-[#DC2626]" />
-                      )}
-                      <span className="truncate">{st.label}</span>
-                    </div>
-                    {st.error_message ? (
-                      <p className="mt-0.5 text-[11px] text-[#DC2626]">
-                        {st.error_message}
-                      </p>
-                    ) : (
-                      <p className="mt-0.5 text-[11px] text-[#8C8C8C]">
-                        수집 항목 {st.collected_count}건
-                      </p>
-                    )}
-                  </div>
-                  <span className="shrink-0 font-mono text-[11px] tabular-nums text-[#8C8C8C]">
-                    {st.progress_pct}%
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </section>
+          </>
+        }
+      />
 
       {/* Sub-tab Navigation */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E5E5E5]">
@@ -675,7 +623,12 @@ export function DataCollectionView({
             </div>
           </div>
 
+          {isCollecting && filteredSources.length > 0 && <SourcesRefreshingBanner />}
+
           {/* Desktop Sources Data Table */}
+          {isCollecting && bundle.sources.length === 0 ? (
+            <SourcesTableSkeleton />
+          ) : (
           <div className="overflow-x-auto rounded-[12px] border border-[#E5E5E5] bg-white">
             {filteredSources.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-14 text-center">
@@ -811,11 +764,15 @@ export function DataCollectionView({
               </table>
             )}
           </div>
+          )}
         </div>
       )}
 
       {/* TAB 2: NAVER DATALAB */}
       {subTab === "DATALAB" && (
+        isCollecting && bundle.datalab.length === 0 ? (
+          <DataLabSkeleton />
+        ) : (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-[#E5E5E5] bg-[#FAFAFA] px-4 py-3 text-xs text-[#111111]">
             <div className="flex items-start gap-2.5">
@@ -946,10 +903,14 @@ export function DataCollectionView({
             </table>
           </div>
         </div>
+        )
       )}
 
       {/* TAB 3: SNS TOP 5 */}
       {subTab === "SNS_TOP5" && (
+        isCollecting && bundle.sns_top_posts.length === 0 ? (
+          <SnsTop5Skeleton />
+        ) : (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-[#E5E5E5] bg-white px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -1230,6 +1191,7 @@ export function DataCollectionView({
             </div>
           )}
         </div>
+        )
       )}
 
       {/* Highlight Spans Source Drawer */}
