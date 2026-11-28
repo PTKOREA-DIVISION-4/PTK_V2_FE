@@ -471,7 +471,7 @@ export function DataCollectionView({
         </div>
 
         <p className="pb-2 text-xs text-[#8C8C8C]">
-          항목을 클릭하면 우측 드로어에서 하이라이트 원문을 대조할 수 있습니다.
+          항목을 클릭하면 우측 드로어에서 원문을 대조할 수 있으며, 제외되지 않은 수집 자료는 장표 생성에 자동 반영됩니다.
         </p>
       </div>
 

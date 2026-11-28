@@ -639,69 +639,77 @@ export function SlideCanvas({
   const hasChart = chartAssets.length > 0;
   const hasSns = snsAssets.length > 0;
   const isAsIsToBe = Boolean(slide.as_is_to_be);
-  // Mirror PPTX 1:1: show horizontal bottom 3-col observation strip when main body already holds chart/table/SNS grid
+  const isTableOnlyWithBullets =
+    hasTable && !hasChart && !hasSns && !isAsIsToBe && slide.bullets.length > 0;
+  // 표 단독+인사이트는 2단 가로(표+인사이트)로 배치해 빈 하단 여백 해소, 차트/SNS 장표는 하단 3열 스트립 유지
   const showBottomInsightStrip =
-    slide.bullets.length > 0 && (hasTable || hasSns) && !isAsIsToBe;
+    slide.bullets.length > 0 && (hasChart || hasSns) && !isAsIsToBe && !isTableOnlyWithBullets;
 
-  const renderTable = (tbl: NonNullable<SlideDraft["table"]>) => (
-    <div className="h-full overflow-auto rounded-[8px] border border-[#E5E5E5] bg-white">
-      <table className="w-full text-left text-[12.5px]">
-        <thead className="sticky top-0 z-10 border-b border-[#E5E5E5] bg-[#F5F5F5] text-[#111111]">
-          <tr>
-            {tbl.headers.map((header, idx) => (
-              <th key={idx} className="whitespace-nowrap px-3 py-2 font-bold">
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[#E5E5E5]">
-          {tbl.rows.map((row, rIdx) => (
-            <tr key={rIdx} className={rIdx % 2 === 1 ? "bg-[#FAFAFA]" : "bg-white"}>
-              {row.map((cell, cIdx) => {
-                const trimmed = String(cell ?? "").trim();
-                const headerName = tbl.headers[cIdx] ?? "";
-                const isChannelCol =
-                  headerName.includes("채널") || headerName.includes("플랫폼");
-                const isPagePillCol = isIndex && headerName.includes("페이지");
-
-                return (
-                  <td
-                    key={cIdx}
-                    className={`px-3 py-1.5 leading-snug ${
-                      cIdx === 0 ? "font-semibold text-[#111111]" : "text-[#4A4A4A]"
-                    }`}
-                  >
-                    {isHttpUrl(trimmed) ? (
-                      <a
-                        href={trimmed}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 whitespace-nowrap font-semibold text-[#E9501F] underline decoration-[#E9501F]/40 underline-offset-2 hover:text-[#111111]"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                        <span>{formatUrlHost(trimmed)}</span>
-                      </a>
-                    ) : isPagePillCol ? (
-                      <span className="inline-flex whitespace-nowrap rounded-[6px] bg-[#FFF3EE] px-2 py-0.5 font-mono text-[12px] font-bold text-[#E9501F]">
-                        {trimmed}
-                      </span>
-                    ) : isChannelCol && isRecognizedChannelLabel(trimmed) ? (
-                      <div className="whitespace-nowrap">
-                        <ChannelBadge channel={trimmed} labelOverride={trimmed} compact />
-                      </div>
-                    ) : (
-                      trimmed
-                    )}
-                  </td>
-                );
-              })}
+  const renderTable = (tbl: NonNullable<SlideDraft["table"]>) => {
+    const compactRows = tbl.rows.length <= 4;
+    return (
+      <div className="max-h-full overflow-auto rounded-[8px] border border-[#E5E5E5] bg-white">
+        <table className={`w-full text-left ${compactRows ? "text-[13px]" : "text-[12.5px]"}`}>
+          <thead className="sticky top-0 z-10 border-b border-[#E5E5E5] bg-[#F5F5F5] text-[#111111]">
+            <tr>
+              {tbl.headers.map((header, idx) => (
+                <th
+                  key={idx}
+                  className={`whitespace-nowrap px-3.5 ${compactRows ? "py-2.5" : "py-2"} font-bold`}
+                >
+                  {header}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+          </thead>
+          <tbody className="divide-y divide-[#E5E5E5]">
+            {tbl.rows.map((row, rIdx) => (
+              <tr key={rIdx} className={rIdx % 2 === 1 ? "bg-[#FAFAFA]" : "bg-white"}>
+                {row.map((cell, cIdx) => {
+                  const trimmed = String(cell ?? "").trim();
+                  const headerName = tbl.headers[cIdx] ?? "";
+                  const isChannelCol =
+                    headerName.includes("채널") || headerName.includes("플랫폼");
+                  const isPagePillCol = isIndex && headerName.includes("페이지");
+
+                  return (
+                    <td
+                      key={cIdx}
+                      className={`px-3.5 ${compactRows ? "py-3 leading-relaxed" : "py-2 leading-snug"} ${
+                        cIdx === 0 ? "font-semibold text-[#111111]" : "text-[#4A4A4A]"
+                      }`}
+                    >
+                      {isHttpUrl(trimmed) ? (
+                        <a
+                          href={trimmed}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 whitespace-nowrap font-semibold text-[#E9501F] underline decoration-[#E9501F]/40 underline-offset-2 hover:text-[#111111]"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                          <span>{formatUrlHost(trimmed)}</span>
+                        </a>
+                      ) : isPagePillCol ? (
+                        <span className="inline-flex whitespace-nowrap rounded-[6px] bg-[#FFF3EE] px-2 py-0.5 font-mono text-[12px] font-bold text-[#E9501F]">
+                          {trimmed}
+                        </span>
+                      ) : isChannelCol && isRecognizedChannelLabel(trimmed) ? (
+                        <div className="whitespace-nowrap">
+                          <ChannelBadge channel={trimmed} labelOverride={trimmed} compact />
+                        </div>
+                      ) : (
+                        trimmed
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   const renderBulletCard = (
     bullet: SlideDraft["bullets"][number],
@@ -710,13 +718,15 @@ export function SlideCanvas({
   ) => (
     <div
       key={idx}
-      className="flex flex-col justify-between rounded-[8px] border border-[#E5E5E5] bg-[#FAFAFA] px-3 py-2"
+      className={`flex flex-col justify-between rounded-[8px] border border-[#E5E5E5] bg-[#FAFAFA] ${
+        compactMode ? "px-2.5 py-2" : "px-3.5 py-2.5"
+      }`}
     >
       <div className="flex items-start gap-2">
         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#E9501F]" />
         <p
-          className={`text-[12.5px] font-medium leading-snug text-[#111111] ${
-            compactMode ? "line-clamp-2" : "line-clamp-3"
+          className={`break-keep font-medium text-[#111111] ${
+            compactMode ? "text-[12px] leading-[1.38]" : "text-[12.5px] leading-[1.48]"
           }`}
         >
           {bullet.claim}
@@ -915,7 +925,7 @@ export function SlideCanvas({
                           </span>
                         )}
                       </div>
-                      <div className="h-[118px] shrink-0 overflow-hidden border-b border-[#E5E5E5] bg-white">
+                      <div className="h-[144px] shrink-0 overflow-hidden border-b border-[#E5E5E5] bg-white">
                         {thumbUrl ? (
                           <img
                             src={thumbUrl}
@@ -931,13 +941,13 @@ export function SlideCanvas({
                           </div>
                         )}
                       </div>
-                      <div className="flex min-h-0 flex-1 flex-col justify-between p-2">
+                      <div className="flex min-h-0 flex-1 flex-col justify-between p-2.5">
                         <div className="space-y-1 overflow-hidden">
                           <p className="line-clamp-2 text-[12px] font-semibold leading-tight text-[#111111]">
                             {asset.caption}
                           </p>
                           {asset.annotation_text && (
-                            <p className="line-clamp-2 text-[12px] leading-snug text-[#4A4A4A]">
+                            <p className="line-clamp-3 break-keep text-[12px] leading-snug text-[#4A4A4A]">
                               {asset.annotation_text}
                             </p>
                           )}
@@ -1020,6 +1030,25 @@ export function SlideCanvas({
                 </div>
               )}
             </div>
+          ) : isTableOnlyWithBullets && slide.table ? (
+            <div className="grid h-full grid-cols-12 gap-4">
+              <div className="col-span-7 min-h-0 flex flex-col justify-start">
+                {renderTable(slide.table)}
+              </div>
+              <div className="col-span-5 flex min-h-0 flex-col gap-2.5 overflow-auto rounded-[8px] border border-[#E5E5E5] bg-white p-3.5">
+                <div className="flex shrink-0 items-center justify-between border-b border-[#EFEFEF] pb-2">
+                  <span className="text-[12px] font-extrabold text-[#E9501F]">
+                    핵심 인사이트 · 관찰된 특징
+                  </span>
+                  <span className="font-mono text-[11px] text-[#8C8C8C]">
+                    {slide.bullets.length}건
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2.5">
+                  {slide.bullets.slice(0, 4).map((b, i) => renderBulletCard(b, i))}
+                </div>
+              </div>
+            </div>
           ) : hasTable && slide.table ? (
             <div className="h-full min-h-0">{renderTable(slide.table)}</div>
           ) : (
@@ -1031,7 +1060,7 @@ export function SlideCanvas({
 
         {/* Bottom 3-Column '관찰된 특징' Strip (matches PPTX 1:1) */}
         {showBottomInsightStrip && (
-          <div className="mb-2 shrink-0 rounded-[8px] border border-[#E5E5E5] bg-[#F5F5F5] px-3 py-2">
+          <div className="mb-1.5 shrink-0 rounded-[8px] border border-[#E5E5E5] bg-[#F5F5F5] px-3 py-2">
             <div className="flex items-stretch gap-3">
               <div className="flex w-16 shrink-0 flex-col justify-center border-r border-[#D4D4D4] pr-2 text-[12px] font-extrabold leading-tight text-[#E9501F]">
                 <span>관찰된</span>
