@@ -311,7 +311,7 @@ export function FactReviewStudio({
 
       {/* CENTER CANVAS STAGE + BOTTOM BAR */}
       <section className="flex min-w-0 min-h-0 flex-col bg-[#F5F5F5]">
-        <div className="flex flex-1 items-center justify-center overflow-y-auto px-6 py-5">
+        <div className="flex flex-1 min-h-0 items-center justify-center overflow-hidden p-4 lg:p-5">
           <SlideCanvas
             slide={currentSlide}
             bundle={bundle}
@@ -321,6 +321,9 @@ export function FactReviewStudio({
 
         <div className="flex h-[46px] shrink-0 items-center justify-between gap-3 border-t border-[#E5E5E5] bg-white px-4">
           <div className="flex items-center gap-3 text-[12px] text-[#4A4A4A] tabular-nums">
+            <span className="rounded-[5px] border border-[#E5E5E5] bg-[#FAFAFA] px-1.5 py-0.5 font-mono text-[11px] font-semibold text-[#111111]">
+              16:9 · 1920×1080
+            </span>
             <span>
               슬라이드 {currentIdx + 1} / {sortedSlides.length}
             </span>
