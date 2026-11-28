@@ -318,13 +318,13 @@ export function SourcesTableSkeleton({ rows = 6 }: { rows?: number }) {
         <thead className="border-b border-[#E5E5E5] bg-[#FAFAFA] text-[11px] font-semibold text-[#4A4A4A]">
           <tr>
             <th className="w-10 px-4 py-3" />
-            <th className="w-36 px-3 py-3">목차</th>
-            <th className="w-28 px-3 py-3">채널</th>
+            <th className="w-36 whitespace-nowrap px-3 py-3">목차</th>
+            <th className="w-36 whitespace-nowrap px-3 py-3">채널</th>
             <th className="px-3 py-3">제목 · 핵심 인용문</th>
-            <th className="w-20 px-3 py-3">감성</th>
-            <th className="w-24 px-3 py-3">상태</th>
-            <th className="w-24 px-3 py-3">수집일</th>
-            <th className="w-36 px-4 py-3 text-right">검수 액션</th>
+            <th className="w-20 whitespace-nowrap px-3 py-3">감성</th>
+            <th className="w-28 whitespace-nowrap px-3 py-3">상태</th>
+            <th className="w-28 whitespace-nowrap px-3 py-3">수집일</th>
+            <th className="w-36 whitespace-nowrap px-4 py-3 text-right">검수 액션</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[#E5E5E5]">
