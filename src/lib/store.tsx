@@ -310,7 +310,7 @@ export function FactbookProvider({ children }: { children: React.ReactNode }) {
 
       setLoadingProjectId(projectId);
       try {
-        const [sumRes, planRes, srcRes, dlRes, snsRes, slideRes, expRes] =
+        const [sumRes, planRes, srcRes, dlRes, snsRes, slideRes, expRes, slideJobRes] =
           await Promise.allSettled([
             factbookApi.getProjectSummary(projectId),
             factbookApi.getResearchPlan(projectId),
@@ -319,6 +319,7 @@ export function FactbookProvider({ children }: { children: React.ReactNode }) {
             factbookApi.getSnsTop5(projectId),
             factbookApi.listSlides(projectId),
             factbookApi.listExports(projectId),
+            factbookApi.getSlideGenerationStatus(projectId),
           ]);
 
         if (sumRes.status !== "fulfilled") {
@@ -347,6 +348,10 @@ export function FactbookProvider({ children }: { children: React.ReactNode }) {
           slideRes.status === "fulfilled" ? slideRes.value : [];
         const exportsList =
           expRes.status === "fulfilled" ? expRes.value : [];
+        const slideGenJob =
+          slideJobRes.status === "fulfilled"
+            ? slideJobRes.value
+            : undefined;
 
         setBundles((prev) => {
           const prevEntry = prev.find((b) => b.project.id === projectId);
@@ -364,6 +369,7 @@ export function FactbookProvider({ children }: { children: React.ReactNode }) {
               sns_top_posts.length,
               prevEntry?.last_job
             ),
+            slide_gen_job: slideGenJob ?? prevEntry?.slide_gen_job ?? null,
             exports: exportsList,
             active_comment_diffs: prevEntry?.active_comment_diffs ?? {},
             workflow_meta: summary.workflow_meta,
@@ -374,6 +380,14 @@ export function FactbookProvider({ children }: { children: React.ReactNode }) {
           }
           return [nextBundle, ...prev];
         });
+
+        if (
+          slideGenJob &&
+          !TERMINAL_JOB_STATUSES.has(slideGenJob.status) &&
+          !activePollsRef.current.has(slideGenJob.id)
+        ) {
+          void pollSlideGenerationJob(projectId, slideGenJob.id);
+        }
       } finally {
         setLoadingProjectId((cur) => (cur === projectId ? null : cur));
       }
@@ -440,6 +454,54 @@ export function FactbookProvider({ children }: { children: React.ReactNode }) {
             });
           }
           await new Promise((r) => setTimeout(r, 1500));
+        }
+      } finally {
+        activePollsRef.current.delete(jobId);
+      }
+    },
+    [ensureProjectLoaded]
+  );
+
+  const pollSlideGenerationJob = useCallback(
+    async (projectId: string, jobId: string): Promise<void> => {
+      if (activePollsRef.current.has(jobId)) return;
+      activePollsRef.current.add(jobId);
+      let lastCompletedCount = -1;
+      let hadSlides = false;
+      try {
+        while (true) {
+          const job = await factbookApi.getJob(jobId);
+          setBundles((prev) =>
+            prev.map((b) =>
+              b.project.id === projectId ? { ...b, slide_gen_job: job } : b
+            )
+          );
+          const completedNow = job.subtasks.filter(
+            (st) => st.status === "COMPLETED"
+          ).length;
+          if (TERMINAL_JOB_STATUSES.has(job.status)) {
+            await ensureProjectLoaded(projectId, true);
+            return;
+          }
+          if (completedNow > lastCompletedCount || !hadSlides) {
+            lastCompletedCount = completedNow;
+            try {
+              const latestSlides = await factbookApi.listSlides(projectId);
+              if (latestSlides.length > 0) {
+                hadSlides = true;
+                setBundles((prev) =>
+                  prev.map((b) =>
+                    b.project.id === projectId
+                      ? { ...b, slides: latestSlides }
+                      : b
+                  )
+                );
+              }
+            } catch {
+              // Ignore transient errors while streaming intermediate snapshots
+            }
+          }
+          await new Promise((r) => setTimeout(r, 1200));
         }
       } finally {
         activePollsRef.current.delete(jobId);
@@ -924,7 +986,7 @@ export function FactbookProvider({ children }: { children: React.ReactNode }) {
     async (projectId: string, splitMode?: SummarySplitMode) => {
       setSyncState("saving");
       try {
-        const slides = await factbookApi.generateSlides(projectId, {
+        const job = await factbookApi.generateSlidesAsync(projectId, {
           summary_split_mode: splitMode,
           use_approved_only: true,
         });
@@ -932,16 +994,16 @@ export function FactbookProvider({ children }: { children: React.ReactNode }) {
           ...b,
           project: {
             ...b.project,
-            current_stage: "REVIEW",
             summary_split_mode: splitMode || b.project.summary_split_mode,
           },
-          slides,
+          slide_gen_job: job,
         }));
+        void pollSlideGenerationJob(projectId, job.id);
       } finally {
         setSyncState("saved");
       }
     },
-    [mutateBundle]
+    [mutateBundle, pollSlideGenerationJob]
   );
 
   const updateSlide = useCallback(

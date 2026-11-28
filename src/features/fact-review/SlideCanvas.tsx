@@ -243,11 +243,13 @@ export function SlideCanvas({
   bundle,
   compact = false,
   onSelectFact,
+  onSelectSlide,
 }: {
   slide: SlideDraft;
   bundle: ProjectBundle;
   compact?: boolean;
   onSelectFact?: (factId: string) => void;
+  onSelectSlide?: (slideId: string) => void;
 }) {
   const statusBadge = getSlideStatusBadge(slide.review_status);
 
@@ -289,11 +291,67 @@ export function SlideCanvas({
     return [];
   }, [bundle.sns_top_posts, collabLabel, slide.slide_type]);
 
+  const isCover = slide.slide_type === "COVER";
   const isDivider = slide.slide_type === "SECTION_DIVIDER";
   const isIndex = slide.slide_type === "INDEX";
 
   // Compact OverviewGrid thumbnail variants (already 16:9)
   if (compact) {
+    if (isCover) {
+      return (
+        <div className="relative flex aspect-[16/9] w-full flex-col justify-between overflow-hidden rounded-[8px] border border-[#262626] bg-[#111111] p-4 text-left text-white shadow-[0_2px_8px_rgba(17,17,17,0.2)]">
+          <div className="absolute inset-x-0 top-0 h-1 bg-[#E9501F]" />
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="rounded bg-[#E9501F] px-2 py-0.5 text-[11px] font-bold text-white">
+                COVER · 표지
+              </span>
+              <StatusBadge tone={statusBadge.tone}>{statusBadge.label}</StatusBadge>
+            </div>
+            <h4 className="line-clamp-2 text-[14px] font-extrabold leading-snug text-white">
+              {slide.title}
+            </h4>
+            <p className="line-clamp-1 text-[12px] text-[#D4D4D4]">{slide.headcopy}</p>
+          </div>
+          <div className="flex items-center justify-between border-t border-white/15 pt-1.5 text-[11px] text-[#A3A3A3] tabular-nums">
+            <span>{bundle.project.brand_name}</span>
+            <span>{bundle.project.period_start} ~ {bundle.project.period_end}</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (isIndex) {
+      const partRows = slide.table?.rows ?? [];
+      return (
+        <div className="relative flex aspect-[16/9] w-full flex-col justify-between overflow-hidden rounded-[8px] border border-[#E5E5E5] bg-white p-4 text-left shadow-[0_1px_3px_rgba(17,17,17,0.04)]">
+          <div className="absolute inset-x-0 top-0 h-[3px] bg-[#E9501F]" />
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-[18px] font-extrabold tracking-tight text-[#111111]">
+                INDEX
+              </p>
+              <div className="mt-1 h-0.5 w-6 bg-[#E9501F]" />
+            </div>
+            <StatusBadge tone={statusBadge.tone}>{statusBadge.label}</StatusBadge>
+          </div>
+          <div className="space-y-0.5 border-t border-[#EAEAEA] pt-1.5 text-[11px] text-[#4A4A4A]">
+            {partRows.slice(0, 4).map((r, i) => (
+              <div key={i} className="flex items-center justify-between gap-2 truncate">
+                <span className="truncate font-medium text-[#111111]">
+                  <span className="mr-1.5 font-mono font-bold text-[#E9501F]">
+                    {String(i).padStart(2, "0")}
+                  </span>
+                  {r[1]}
+                </span>
+                <span className="shrink-0 font-mono text-[#8C8C8C]">{r[3]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     if (isDivider) {
       return (
         <div className="relative flex aspect-[16/9] w-full flex-col justify-between overflow-hidden rounded-[8px] border border-[#262626] bg-[#111111] p-4 text-left text-white shadow-[0_2px_8px_rgba(17,17,17,0.18)]">
@@ -350,6 +408,152 @@ export function SlideCanvas({
           )}
         </div>
       </div>
+    );
+  }
+
+  // Dedicated Dark COVER 16:9 Canvas (1280x720)
+  if (isCover) {
+    const trackLabel =
+      bundle.project.analysis_track === "REVIEW_CENTRIC"
+        ? "후기·실사용 중심(Track A)"
+        : "시장·검색 지표 중심(Track B)";
+    return (
+      <SlideStage>
+        <div className="relative flex h-[720px] w-[1280px] flex-col justify-between overflow-hidden border border-[#262626] bg-[#111111] px-14 py-12 text-white">
+          <div className="absolute inset-x-0 top-0 h-[6px] bg-[#E9501F]" />
+
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-bold tracking-[0.18em] text-[#E9501F]">
+              DIVISION 4 · FACTBOOK REPORT &nbsp;|&nbsp; {bundle.project.industry_category}
+            </span>
+            <StatusBadge tone={statusBadge.tone}>{statusBadge.label}</StatusBadge>
+          </div>
+
+          <div className="my-auto border-l-[6px] border-[#E9501F] pl-8">
+            <h1 className="max-w-4xl text-[46px] font-extrabold leading-[1.18] tracking-tight text-white">
+              {slide.title}
+            </h1>
+            <p className="mt-5 text-[22px] font-semibold text-[#E5E5E5]">
+              {slide.headcopy}
+            </p>
+            <p className="mt-4 text-[15px] text-[#A3A3A3] tabular-nums">
+              수집 기간: {bundle.project.period_start} ~ {bundle.project.period_end}
+              <span className="mx-3 text-[#404040]">|</span>
+              트랙: {trackLabel}
+              <span className="mx-3 text-[#404040]">|</span>
+              총 {bundle.slides.length}장 구성
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-white/15 pt-4 text-[13px] text-[#A3A3A3]">
+            <span>{slide.footnote ?? `PTKOREA Division 4 · ${bundle.project.brand_name}`}</span>
+            <span className="font-mono tracking-wider">16:9 WIDESCREEN EDITION</span>
+          </div>
+        </div>
+      </SlideStage>
+    );
+  }
+
+  // Dedicated Minimal Swiss Editorial INDEX 16:9 Canvas (1280x720)
+  if (isIndex) {
+    const rows = slide.table?.rows ?? [];
+    const sectionOrderList = [
+      "0_OVERVIEW",
+      "1_OWN",
+      "2_MARKET",
+      "3_COMPETITOR",
+      "4_CONSUMER",
+      "5_SUMMARY_CONCLUSION",
+    ] as const;
+
+    return (
+      <SlideStage>
+        <div className="relative flex h-[720px] w-[1280px] flex-col justify-between overflow-hidden border border-[#E5E5E5] bg-white px-14 py-11 text-[#111111]">
+          <div className="absolute inset-x-0 top-0 h-[3px] bg-[#E9501F]" />
+
+          <div className="flex items-center justify-end">
+            <StatusBadge tone={statusBadge.tone}>{statusBadge.label}</StatusBadge>
+          </div>
+
+          <div className="my-auto grid grid-cols-[340px_1fr] items-start gap-12">
+            {/* Left Minimal Anchor */}
+            <div className="pt-2">
+              <h2 className="text-[48px] font-extrabold leading-none tracking-tight text-[#111111]">
+                INDEX
+              </h2>
+              <div className="mt-4 h-1 w-12 bg-[#E9501F]" />
+              <p className="mt-5 text-[15px] font-bold text-[#111111]">
+                {bundle.project.brand_name} · {bundle.project.product_name}
+              </p>
+              <p className="mt-1.5 text-[13px] font-medium text-[#737373] tabular-nums">
+                {slide.headcopy}
+              </p>
+            </div>
+
+            {/* Right Clean Hairline List */}
+            <div className="divide-y divide-[#EAEAEA] border-y border-[#EAEAEA]">
+              {rows.map((row, idx) => {
+                const rawPart = String(row[0] ?? `PART ${idx}`);
+                const numCode = rawPart.replace("PART ", "").padStart(2, "0");
+                const areaLabel = String(row[1] ?? "");
+                const countLabel = String(row[2] ?? "");
+                const pageLabel = String(row[3] ?? "");
+                const targetSec = sectionOrderList[idx];
+                const targetSlide =
+                  bundle.slides.find(
+                    (s) =>
+                      s.section_code === targetSec &&
+                      s.slide_type !== "COVER" &&
+                      s.slide_type !== "INDEX"
+                  ) ?? bundle.slides.find((s) => s.section_code === targetSec);
+
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    disabled={!targetSlide || !onSelectSlide}
+                    onClick={() => targetSlide && onSelectSlide?.(targetSlide.id)}
+                    className={`flex w-full items-center justify-between gap-6 py-4 text-left transition-colors ${
+                      targetSlide && onSelectSlide
+                        ? "hover:bg-[#FAFAFA] cursor-pointer px-2 -mx-2 rounded-[6px]"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex min-w-0 items-center gap-5">
+                      <span className="w-8 shrink-0 font-mono text-[17px] font-extrabold text-[#E9501F] tabular-nums">
+                        {numCode}
+                      </span>
+                      <span className="truncate text-[17px] font-bold text-[#111111]">
+                        {areaLabel}
+                      </span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3 tabular-nums">
+                      <span className="font-mono text-[13px] font-bold text-[#111111]">
+                        {pageLabel}
+                      </span>
+                      {countLabel && (
+                        <span className="w-10 text-right text-[12px] text-[#8C8C8C]">
+                          {countLabel}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-[#E5E5E5] pt-3 text-[12px] text-[#737373]">
+            <span>
+              {slide.footnote ??
+                `${bundle.project.brand_name} · ${bundle.project.product_name} (${bundle.project.period_start} ~ ${bundle.project.period_end})`}
+            </span>
+            <span className="font-mono tabular-nums">
+              {String(slide.slide_order).padStart(2, "0")} / {String(bundle.slides.length).padStart(2, "0")}
+            </span>
+          </div>
+        </div>
+      </SlideStage>
     );
   }
 

@@ -43,14 +43,19 @@ export function StudioShell({ projectId }: { projectId: string }) {
     if (!bundle?.loaded) return;
     if (!initialModeSetRef.current) {
       initialModeSetRef.current = true;
-      if (bundle.last_job.status === "RUNNING" || bundle.slides.length === 0) {
+      const genActive =
+        bundle.slide_gen_job?.status === "RUNNING" ||
+        bundle.slide_gen_job?.status === "PENDING";
+      if (genActive) {
+        setMode("REVIEW");
+      } else if (bundle.last_job.status === "RUNNING" || bundle.slides.length === 0) {
         setMode("COLLECT");
       }
     }
     if (!selectedSlideId && bundle.slides[0]?.id) {
       setSelectedSlideId(bundle.slides[0].id);
     }
-  }, [bundle?.loaded, bundle?.last_job.status, bundle?.slides, selectedSlideId]);
+  }, [bundle?.loaded, bundle?.last_job.status, bundle?.slide_gen_job?.status, bundle?.slides, selectedSlideId]);
 
   const workflowMeta = useMemo(
     () => (bundle ? getWorkflowMeta(bundle) : null),
@@ -91,6 +96,9 @@ export function StudioShell({ projectId }: { projectId: string }) {
   const isCollecting =
     bundle.last_job.status === "RUNNING" ||
     (bundle.last_job.status === "PENDING" && !bundle.last_job.id.startsWith("idle-"));
+  const isGeneratingSlides =
+    bundle.slide_gen_job?.status === "RUNNING" ||
+    bundle.slide_gen_job?.status === "PENDING";
 
   const handleOpenSlideFromOtherMode = (slideId: string) => {
     setSelectedSlideId(slideId);
@@ -185,6 +193,12 @@ export function StudioShell({ projectId }: { projectId: string }) {
                     <span className="inline-flex items-center gap-1 rounded-[5px] border border-[#F9C8B8] bg-[#FFF3EE] px-1.5 py-0.5 text-[10px] font-bold text-[#E9501F] tabular-nums">
                       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#E9501F]" />
                       수집 중 {bundle.last_job.progress_pct}%
+                    </span>
+                  )}
+                  {tab.key === "REVIEW" && isGeneratingSlides && (
+                    <span className="inline-flex items-center gap-1 rounded-[5px] border border-[#F9C8B8] bg-[#FFF3EE] px-1.5 py-0.5 text-[10px] font-bold text-[#E9501F] tabular-nums">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#E9501F]" />
+                      생성 중 {bundle.slide_gen_job?.progress_pct ?? 0}%
                     </span>
                   )}
                 </button>

@@ -381,9 +381,9 @@ export function DataCollectionView({
   const handleGenerateSlides = async () => {
     await generateSlides(bundle.project.id, bundle.project.summary_split_mode);
     pushToast({
-      tone: "success",
-      title: "장표 초안 생성 완료",
-      description: "근거 매핑이 완료된 0~5장 슬라이드가 스튜디오에 준비되었습니다.",
+      tone: "info",
+      title: "실시간 장표 생성을 시작했습니다.",
+      description: "스튜디오에서 표지·목차와 각 파트가 채워지는 과정을 바로 확인할 수 있습니다.",
     });
     onGoToStudio();
   };
