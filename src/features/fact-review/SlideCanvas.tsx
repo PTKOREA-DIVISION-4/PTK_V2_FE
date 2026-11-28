@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   ExternalLink,
@@ -28,7 +28,11 @@ import {
   type ProjectBundle,
   type SlideDraft,
   type SlideReviewStatus,
+  type SlideVisualAsset,
 } from "@/lib/types";
+
+const LOGICAL_WIDTH = 1280;
+const LOGICAL_HEIGHT = 720;
 
 function getSlideStatusBadge(status: SlideReviewStatus) {
   if (status === "APPROVED") {
@@ -73,6 +77,164 @@ function isRecognizedChannelLabel(text: string): boolean {
     lower.includes("더쿠") ||
     lower.includes("디시") ||
     lower.includes("에펨")
+  );
+}
+
+function SlideStage({ children }: { children: React.ReactNode }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(0.75);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const update = () => {
+      const { clientWidth, clientHeight } = el;
+      if (clientWidth <= 0) return;
+      const wScale = clientWidth / LOGICAL_WIDTH;
+      const hScale = clientHeight > 80 ? clientHeight / LOGICAL_HEIGHT : wScale;
+      const next = Math.max(0.28, Math.min(wScale, hScale, 1.35));
+      setScale(next);
+    };
+
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="flex h-full w-full items-center justify-center"
+    >
+      <div
+        data-slide-stage="16x9"
+        style={{
+          width: `${Math.round(LOGICAL_WIDTH * scale)}px`,
+          height: `${Math.round(LOGICAL_HEIGHT * scale)}px`,
+        }}
+        className="relative shrink-0 overflow-hidden rounded-[10px] shadow-[0_10px_32px_-8px_rgba(17,17,17,0.16)]"
+      >
+        <div
+          style={{
+            width: `${LOGICAL_WIDTH}px`,
+            height: `${LOGICAL_HEIGHT}px`,
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function renderChartAsset(asset: SlideVisualAsset, bundle: ProjectBundle) {
+  return (
+    <div className="flex h-full flex-col justify-between rounded-[8px] border border-[#E5E5E5] bg-white p-3.5">
+      <div className="mb-1.5 flex items-center justify-between gap-2 shrink-0">
+        <span className="truncate text-[13px] font-bold text-[#111111]">
+          {asset.title}
+        </span>
+        {asset.annotation_text && (
+          <span className="shrink-0 rounded-[6px] bg-[#FFF3EE] px-2 py-0.5 text-[12px] font-semibold text-[#E9501F]">
+            {asset.annotation_text}
+          </span>
+        )}
+      </div>
+
+      <div className="min-h-0 flex-1 flex items-center">
+        <div className="w-full">
+          {asset.asset_type === "DATALAB_TREND_CHART" && (
+            <DataLabTrendChart seriesList={bundle.datalab} metricType="SEARCH_TREND" compact />
+          )}
+
+          {asset.asset_type === "DATALAB_SOS_BAR" && (
+            <DataLabSosBarChart seriesList={bundle.datalab} metricType="ALL" compact />
+          )}
+
+          {asset.asset_type === "HORIZONTAL_BAR_CHART" && (
+            <HorizontalDataBarChart
+              items={
+                (asset.metadata?.items as Array<{
+                  label: string;
+                  value: number;
+                  highlight?: boolean;
+                }>) ?? []
+              }
+              unit={String(asset.metadata?.unit ?? "")}
+            />
+          )}
+
+          {asset.asset_type === "PRICE_DISCOUNT_BAR" && (
+            <PriceDiscountChart
+              items={
+                (asset.metadata?.items as Array<{
+                  label: string;
+                  list_price: number;
+                  sale_price: number;
+                  discount_pct?: number;
+                }>) ?? []
+              }
+              unit={String(asset.metadata?.unit ?? "만원")}
+            />
+          )}
+
+          {asset.asset_type === "PRESS_MONTHLY_BAR" && (
+            <PressMonthlyChart
+              items={
+                (asset.metadata?.items as Array<{
+                  label: string;
+                  value: number;
+                  highlight?: boolean;
+                }>) ?? []
+              }
+            />
+          )}
+
+          {asset.asset_type === "PRESS_BRAND_BAR" && (
+            <PressBrandCompareChart
+              items={
+                (asset.metadata?.items as Array<{
+                  label: string;
+                  value: number;
+                  highlight?: boolean;
+                }>) ?? []
+              }
+            />
+          )}
+
+          {asset.asset_type === "MARKETING_HEATMAP" && (
+            <MarketingHeatmapChart
+              brands={(asset.metadata?.brands as string[]) ?? []}
+              rows={
+                (asset.metadata?.rows as Array<{
+                  axis: string;
+                  scores: Array<{ brand: string; score: number }>;
+                }>) ?? []
+              }
+            />
+          )}
+
+          {asset.asset_type === "CONSUMER_KBF_CHART" && (
+            <VocSentimentChart
+              positive={Number(asset.metadata?.positive ?? 60)}
+              negative={Number(asset.metadata?.negative ?? 22)}
+              neutral={Number(asset.metadata?.neutral ?? 18)}
+              compact
+            />
+          )}
+        </div>
+      </div>
+
+      {asset.caption && (
+        <p className="mt-1.5 shrink-0 truncate text-[12px] text-[#737373]">
+          {asset.caption}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -130,7 +292,7 @@ export function SlideCanvas({
   const isDivider = slide.slide_type === "SECTION_DIVIDER";
   const isIndex = slide.slide_type === "INDEX";
 
-  // Compact OverviewGrid thumbnail variants
+  // Compact OverviewGrid thumbnail variants (already 16:9)
   if (compact) {
     if (isDivider) {
       return (
@@ -191,14 +353,14 @@ export function SlideCanvas({
     );
   }
 
-  // Dedicated Dark SECTION_DIVIDER Canvas
+  // Dedicated Dark SECTION_DIVIDER 16:9 Canvas (1280x720)
   if (isDivider) {
     return (
-      <div className="mx-auto w-full max-w-[1100px]">
-        <div className="relative flex min-h-[560px] flex-col justify-between overflow-hidden rounded-[10px] border border-[#262626] bg-[#111111] p-8 text-white shadow-[0_12px_32px_-8px_rgba(17,17,17,0.35)] lg:p-10">
+      <SlideStage>
+        <div className="relative flex h-[720px] w-[1280px] flex-col justify-between overflow-hidden border border-[#262626] bg-[#111111] px-10 py-8 text-white">
           <div className="absolute inset-x-0 top-0 h-1.5 bg-[#E9501F]" />
 
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex shrink-0 items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 text-[12px] font-semibold">
               <span className="rounded-[6px] bg-[#E9501F] px-2.5 py-1 font-mono text-white">
                 {String(slide.slide_order).padStart(2, "0")} · SECTION DIVIDER
@@ -210,33 +372,33 @@ export function SlideCanvas({
             <StatusBadge tone={statusBadge.tone}>{statusBadge.label}</StatusBadge>
           </div>
 
-          <div className="my-8 space-y-5 border-l-4 border-[#E9501F] pl-6">
-            <p className="text-[13px] font-bold tracking-widest text-[#E9501F]">
+          <div className="my-4 space-y-4 border-l-4 border-[#E9501F] pl-7">
+            <p className="text-[14px] font-bold tracking-widest text-[#E9501F]">
               {SECTION_LABELS[slide.section_code]}
             </p>
-            <h2 className="text-[28px] font-extrabold leading-tight tracking-tight text-white lg:text-[34px]">
+            <h2 className="text-[34px] font-extrabold leading-tight tracking-tight text-white">
               {slide.title}
             </h2>
-            <p className="max-w-3xl text-[16px] font-medium leading-relaxed text-[#E5E5E5]">
+            <p className="max-w-4xl text-[17px] font-medium leading-relaxed text-[#E5E5E5]">
               {slide.headcopy}
             </p>
           </div>
 
-          <div className="space-y-4">
+          <div className="shrink-0 space-y-3.5">
             {slide.kpi_cards.length > 0 && (
-              <div className="grid gap-3 md:grid-cols-3">
-                {slide.kpi_cards.map((kpi, idx) => (
+              <div className="grid grid-cols-3 gap-4">
+                {slide.kpi_cards.slice(0, 3).map((kpi, idx) => (
                   <div
                     key={`${kpi.label}-${idx}`}
-                    className="rounded-[8px] border border-white/15 bg-white/5 px-4 py-3"
+                    className="rounded-[8px] border border-white/15 bg-white/5 px-5 py-3.5"
                   >
                     <p className="text-[12px] font-medium text-[#A3A3A3]">{kpi.label}</p>
-                    <div className="mt-1 flex items-baseline gap-2">
-                      <span className="text-[22px] font-extrabold tabular-nums text-white">
+                    <div className="mt-1 flex items-baseline gap-2.5">
+                      <span className="whitespace-nowrap text-[24px] font-extrabold tabular-nums text-white">
                         {kpi.value}
                       </span>
                       {kpi.delta && (
-                        <span className="text-[12px] font-semibold text-[#F48A66]">
+                        <span className="truncate text-[12px] font-semibold text-[#F48A66]">
                           {kpi.delta}
                         </span>
                       )}
@@ -247,11 +409,11 @@ export function SlideCanvas({
             )}
 
             {slide.bullets.length > 0 && (
-              <div className="grid gap-2.5 md:grid-cols-3">
-                {slide.bullets.map((b, idx) => (
+              <div className="grid grid-cols-3 gap-3.5">
+                {slide.bullets.slice(0, 3).map((b, idx) => (
                   <div
                     key={idx}
-                    className="rounded-[8px] border border-white/10 bg-[#1C1C1C] px-3.5 py-2.5 text-[13px] leading-snug text-[#E5E5E5]"
+                    className="rounded-[8px] border border-white/10 bg-[#1C1C1C] px-4 py-3 text-[13px] leading-snug text-[#E5E5E5]"
                   >
                     {b.claim}
                   </div>
@@ -260,26 +422,151 @@ export function SlideCanvas({
             )}
           </div>
 
-          <div className="mt-4 flex items-center justify-between border-t border-white/15 pt-3 text-[12px] text-[#A3A3A3]">
+          <div className="flex shrink-0 items-center justify-between border-t border-white/15 pt-3 text-[12px] text-[#A3A3A3]">
             <span>{slide.footnote ?? "PTKOREA Division 4 Factbook"}</span>
-            <span className="font-mono">DIVISION 4 STANDARD</span>
+            <span className="font-mono">DIVISION 4 · 16:9 WIDESCREEN</span>
           </div>
         </div>
-      </div>
+      </SlideStage>
     );
   }
 
+  const hasTable = Boolean(slide.table && slide.table.rows.length > 0);
+  const hasChart = chartAssets.length > 0;
+  const hasSns = snsAssets.length > 0;
+  const isAsIsToBe = Boolean(slide.as_is_to_be);
+  // Mirror PPTX 1:1: show horizontal bottom 3-col observation strip when main body already holds chart/table/SNS grid
+  const showBottomInsightStrip =
+    slide.bullets.length > 0 && (hasTable || hasSns) && !isAsIsToBe;
+
+  const renderTable = (tbl: NonNullable<SlideDraft["table"]>) => (
+    <div className="h-full overflow-auto rounded-[8px] border border-[#E5E5E5] bg-white">
+      <table className="w-full text-left text-[12.5px]">
+        <thead className="sticky top-0 z-10 border-b border-[#E5E5E5] bg-[#F5F5F5] text-[#111111]">
+          <tr>
+            {tbl.headers.map((header, idx) => (
+              <th key={idx} className="whitespace-nowrap px-3 py-2 font-bold">
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[#E5E5E5]">
+          {tbl.rows.map((row, rIdx) => (
+            <tr key={rIdx} className={rIdx % 2 === 1 ? "bg-[#FAFAFA]" : "bg-white"}>
+              {row.map((cell, cIdx) => {
+                const trimmed = String(cell ?? "").trim();
+                const headerName = tbl.headers[cIdx] ?? "";
+                const isChannelCol =
+                  headerName.includes("채널") || headerName.includes("플랫폼");
+                const isPagePillCol = isIndex && headerName.includes("페이지");
+
+                return (
+                  <td
+                    key={cIdx}
+                    className={`px-3 py-1.5 leading-snug ${
+                      cIdx === 0 ? "font-semibold text-[#111111]" : "text-[#4A4A4A]"
+                    }`}
+                  >
+                    {isHttpUrl(trimmed) ? (
+                      <a
+                        href={trimmed}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 whitespace-nowrap font-semibold text-[#E9501F] underline decoration-[#E9501F]/40 underline-offset-2 hover:text-[#111111]"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                        <span>{formatUrlHost(trimmed)}</span>
+                      </a>
+                    ) : isPagePillCol ? (
+                      <span className="inline-flex whitespace-nowrap rounded-[6px] bg-[#FFF3EE] px-2 py-0.5 font-mono text-[12px] font-bold text-[#E9501F]">
+                        {trimmed}
+                      </span>
+                    ) : isChannelCol && isRecognizedChannelLabel(trimmed) ? (
+                      <ChannelBadge channel={trimmed} labelOverride={trimmed} compact />
+                    ) : (
+                      trimmed
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const renderBulletCard = (
+    bullet: SlideDraft["bullets"][number],
+    idx: number,
+    compactMode = false
+  ) => (
+    <div
+      key={idx}
+      className="flex flex-col justify-between rounded-[8px] border border-[#E5E5E5] bg-[#FAFAFA] px-3 py-2"
+    >
+      <div className="flex items-start gap-2">
+        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#E9501F]" />
+        <p
+          className={`text-[12.5px] font-medium leading-snug text-[#111111] ${
+            compactMode ? "line-clamp-2" : "line-clamp-3"
+          }`}
+        >
+          {bullet.claim}
+        </p>
+      </div>
+      {(bullet.source_name || bullet.source_url) && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-3.5 text-[12px]">
+          {bullet.fact_id ? (
+            <button
+              type="button"
+              onClick={() => onSelectFact?.(bullet.fact_id!)}
+              className="inline-flex max-w-[170px] items-center gap-1 rounded-[5px] border border-[#E5E5E5] bg-white px-1.5 py-0.5 font-semibold text-[#111111] hover:border-[#111111] cursor-pointer"
+            >
+              <ChannelGlyph channelKey={normalizeChannelKey(bullet.source_name)} size={13} />
+              <Link2 className="h-3 w-3 shrink-0 text-[#737373]" />
+              <span className="truncate">{bullet.source_name ?? bullet.fact_id}</span>
+            </button>
+          ) : (
+            bullet.source_name && (
+              <ChannelBadge
+                channel={bullet.source_name}
+                labelOverride={bullet.source_name}
+                compact
+              />
+            )
+          )}
+          {bullet.source_url && isHttpUrl(bullet.source_url) && (
+            <a
+              href={bullet.source_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 rounded-[5px] border border-[#F9C8B8] bg-[#FFF8F5] px-1.5 py-0.5 font-semibold text-[#E9501F] hover:bg-[#FFF0EA]"
+            >
+              <ExternalLink className="h-3 w-3 shrink-0" />
+              <span className="truncate">{formatUrlHost(bullet.source_url)}</span>
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  // Main 16:9 (1280 x 720) Horizontal Slide Frame
   return (
-    <div className="mx-auto w-full max-w-[1100px]">
-      <div className="flex min-h-[560px] flex-col justify-between rounded-[10px] border border-[#E5E5E5] bg-white p-6 shadow-[0_6px_24px_-8px_rgba(17,17,17,0.08)] lg:p-7">
+    <SlideStage>
+      <div className="relative flex h-[720px] w-[1280px] flex-col justify-between overflow-hidden border border-[#E5E5E5] bg-white px-7 py-5">
+        <div className="absolute inset-x-0 top-0 h-[3px] bg-[#E9501F]" />
+
         {/* Top Slide Header */}
-        <div className="space-y-2.5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="shrink-0 space-y-2">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-[12px] font-semibold text-[#4A4A4A]">
               <span className="font-mono text-[12px] text-[#8C8C8C]">
                 {String(slide.slide_order).padStart(2, "0")}
               </span>
-              <span className="font-bold text-[#E9501F]">
+              <span className="rounded-[5px] bg-[#111111] px-2 py-0.5 text-[12px] font-bold text-white">
                 {isIndex ? "00. INDEX 목차" : SECTION_LABELS[slide.section_code]}
               </span>
               <span className="text-[#D4D4D4]">|</span>
@@ -291,78 +578,75 @@ export function SlideCanvas({
               {slide.latest_comment_status === "APPLIED" && (
                 <StatusBadge tone="indigo">AI 반영</StatusBadge>
               )}
-              <StatusBadge tone={statusBadge.tone}>
-                {statusBadge.label}
-              </StatusBadge>
+              <StatusBadge tone={statusBadge.tone}>{statusBadge.label}</StatusBadge>
             </div>
           </div>
 
-          <h2 className="text-[21px] font-bold tracking-tight text-[#111111] lg:text-[23px]">
+          <h2 className="truncate text-[21px] font-bold tracking-tight text-[#111111]">
             {slide.title}
           </h2>
 
           <div
-            className={`rounded-r-[8px] border-l-[3px] px-3.5 py-2.5 ${
-              isIndex
-                ? "border-[#E9501F] bg-[#FFF8F5]"
-                : "border-[#111111] bg-[#FAFAFA]"
+            className={`rounded-r-[8px] border-l-[3px] px-3.5 py-2 ${
+              isIndex ? "border-[#E9501F] bg-[#FFF8F5]" : "border-[#111111] bg-[#FAFAFA]"
             }`}
           >
-            <p className="text-[14px] font-semibold leading-snug text-[#111111]">
+            <p className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-[#111111]">
               {slide.headcopy}
             </p>
           </div>
         </div>
 
-        {/* Middle Body */}
-        <div className="my-4 flex-1 space-y-3.5">
-          {slide.kpi_cards.length > 0 && (
-            <div
-              className={`grid gap-2.5 ${
-                slide.kpi_cards.length === 2
-                  ? "grid-cols-2"
-                  : slide.kpi_cards.length === 3
-                    ? "grid-cols-3"
-                    : "grid-cols-2 lg:grid-cols-4"
-              }`}
-            >
-              {slide.kpi_cards.map((kpi, idx) => (
-                <div
-                  key={`${kpi.label}-${idx}`}
-                  className="rounded-[8px] border border-[#E5E5E5] bg-[#FAFAFA] px-3.5 py-2.5"
-                >
-                  <p className="text-[12px] font-semibold text-[#4A4A4A]">
-                    {kpi.label}
-                  </p>
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-[20px] font-bold tracking-tight tabular-nums text-[#111111]">
-                      {kpi.value}
+        {/* Optional KPI Strip */}
+        {slide.kpi_cards.length > 0 && (
+          <div
+            className={`mt-2.5 grid shrink-0 gap-2.5 ${
+              slide.kpi_cards.length === 2
+                ? "grid-cols-2"
+                : slide.kpi_cards.length === 3
+                  ? "grid-cols-3"
+                  : "grid-cols-4"
+            }`}
+          >
+            {slide.kpi_cards.slice(0, 4).map((kpi, idx) => (
+              <div
+                key={`${kpi.label}-${idx}`}
+                className="rounded-[8px] border border-[#E5E5E5] bg-[#FAFAFA] px-3.5 py-2"
+              >
+                <p className="truncate text-[12px] font-semibold text-[#4A4A4A]">
+                  {kpi.label}
+                </p>
+                <div className="mt-0.5 flex items-baseline gap-2">
+                  <span
+                    className={`whitespace-nowrap text-[19px] font-bold tracking-tight tabular-nums ${
+                      idx === 0 ? "text-[#E9501F]" : "text-[#111111]"
+                    }`}
+                  >
+                    {kpi.value}
+                  </span>
+                  {kpi.delta && (
+                    <span
+                      className={`truncate text-[12px] font-semibold tabular-nums ${
+                        kpi.delta.startsWith("-") ? "text-[#DC2626]" : "text-[#1F8A5B]"
+                      }`}
+                    >
+                      {kpi.delta}
                     </span>
-                    {kpi.delta && (
-                      <span
-                        className={`text-[12px] font-semibold tabular-nums ${
-                          kpi.delta.startsWith("-")
-                            ? "text-[#DC2626]"
-                            : "text-[#1F8A5B]"
-                        }`}
-                      >
-                        {kpi.delta}
-                      </span>
-                    )}
-                  </div>
-                  {kpi.basis && (
-                    <p className="mt-0.5 truncate text-[12px] text-[#737373]">
-                      {kpi.basis}
-                    </p>
                   )}
                 </div>
-              ))}
-            </div>
-          )}
+                {kpi.basis && (
+                  <p className="truncate text-[12px] text-[#737373]">{kpi.basis}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
-          {snsAssets.length > 0 && (
-            <div className="rounded-[8px] border border-[#E5E5E5] bg-white p-3.5">
-              <div className="mb-2.5 flex items-center justify-between gap-2">
+        {/* Middle Main Body Band (Strict Horizontal Fit) */}
+        <div className="my-2.5 min-h-0 flex-1 overflow-hidden">
+          {hasSns ? (
+            <div className="flex h-full flex-col rounded-[8px] border border-[#E5E5E5] bg-white p-3">
+              <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-2 text-[13px] font-bold text-[#111111]">
                   <ChannelGlyph
                     channelKey={normalizeChannelKey(
@@ -381,12 +665,12 @@ export function SlideCanvas({
                 </span>
               </div>
               <div
-                className={`grid gap-2.5 ${
+                className={`grid min-h-0 flex-1 gap-2.5 ${
                   snsAssets.length >= 4
-                    ? "grid-cols-2 lg:grid-cols-5"
+                    ? "grid-cols-5"
                     : snsAssets.length === 3
-                      ? "grid-cols-1 md:grid-cols-3"
-                      : "grid-cols-1 md:grid-cols-2"
+                      ? "grid-cols-3"
+                      : "grid-cols-2"
                 }`}
               >
                 {snsAssets.slice(0, 5).map((asset, idx) => {
@@ -404,12 +688,14 @@ export function SlideCanvas({
                   return (
                     <div
                       key={`${asset.title}-${idx}`}
-                      className={`flex flex-col overflow-hidden rounded-[8px] border bg-[#FAFAFA] ${
-                        idx === 0 ? "border-[#E9501F] ring-1 ring-[#E9501F]/20" : "border-[#E5E5E5]"
+                      className={`flex min-h-0 flex-col overflow-hidden rounded-[8px] border bg-[#FAFAFA] ${
+                        idx === 0
+                          ? "border-[#E9501F] ring-1 ring-[#E9501F]/20"
+                          : "border-[#E5E5E5]"
                       }`}
                     >
                       <div
-                        className={`flex items-center justify-between px-2.5 py-1.5 text-[12px] font-bold text-white ${
+                        className={`flex shrink-0 items-center justify-between px-2.5 py-1.5 text-[12px] font-bold text-white ${
                           idx === 0 ? "bg-[#E9501F]" : "bg-[#111111]"
                         }`}
                       >
@@ -423,7 +709,7 @@ export function SlideCanvas({
                           </span>
                         )}
                       </div>
-                      <div className="h-24 w-full overflow-hidden border-b border-[#E5E5E5] bg-white">
+                      <div className="h-[118px] shrink-0 overflow-hidden border-b border-[#E5E5E5] bg-white">
                         {thumbUrl ? (
                           <img
                             src={thumbUrl}
@@ -439,21 +725,23 @@ export function SlideCanvas({
                           </div>
                         )}
                       </div>
-                      <div className="flex flex-1 flex-col justify-between space-y-1.5 p-2.5">
-                        <p className="text-[12px] font-semibold leading-tight text-[#111111]">
-                          {asset.caption}
-                        </p>
-                        {asset.annotation_text && (
-                          <p className="line-clamp-2 text-[12px] leading-snug text-[#4A4A4A]">
-                            {asset.annotation_text}
+                      <div className="flex min-h-0 flex-1 flex-col justify-between p-2">
+                        <div className="space-y-1 overflow-hidden">
+                          <p className="line-clamp-2 text-[12px] font-semibold leading-tight text-[#111111]">
+                            {asset.caption}
                           </p>
-                        )}
+                          {asset.annotation_text && (
+                            <p className="line-clamp-2 text-[12px] leading-snug text-[#4A4A4A]">
+                              {asset.annotation_text}
+                            </p>
+                          )}
+                        </div>
                         {postUrl && (
                           <a
                             href={postUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#E9501F] hover:underline"
+                            className="mt-1 inline-flex shrink-0 items-center gap-1 text-[12px] font-semibold text-[#E9501F] hover:underline"
                           >
                             <ExternalLink className="h-3 w-3" />
                             원문 보기
@@ -465,311 +753,93 @@ export function SlideCanvas({
                 })}
               </div>
             </div>
-          )}
-
-          <div
-            className={`grid gap-4 ${
-              chartAssets.length > 0 && slide.bullets.length > 0
-                ? "lg:grid-cols-12"
-                : "grid-cols-1"
-            }`}
-          >
-            {chartAssets.length > 0 && (
-              <div
-                className={
-                  slide.bullets.length > 0 ? "lg:col-span-6" : "col-span-1"
-                }
-              >
-                {chartAssets.map((asset, idx) => (
-                  <div
-                    key={`${asset.asset_type}-${idx}`}
-                    className="rounded-[8px] border border-[#E5E5E5] bg-white p-3.5"
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <span className="text-[13px] font-bold text-[#111111]">
-                        {asset.title}
-                      </span>
-                      {asset.annotation_text && (
-                        <span className="rounded-[6px] bg-[#FFF3EE] px-2 py-0.5 text-[12px] font-semibold text-[#E9501F]">
-                          {asset.annotation_text}
-                        </span>
-                      )}
-                    </div>
-
-                    {asset.asset_type === "DATALAB_TREND_CHART" && (
-                      <DataLabTrendChart seriesList={bundle.datalab} metricType="SEARCH_TREND" compact />
-                    )}
-
-                    {asset.asset_type === "DATALAB_SOS_BAR" && (
-                      <DataLabSosBarChart seriesList={bundle.datalab} metricType="ALL" compact />
-                    )}
-
-                    {asset.asset_type === "HORIZONTAL_BAR_CHART" && (
-                      <HorizontalDataBarChart
-                        items={
-                          (asset.metadata?.items as Array<{
-                            label: string;
-                            value: number;
-                            highlight?: boolean;
-                          }>) ?? []
-                        }
-                        unit={String(asset.metadata?.unit ?? "")}
-                      />
-                    )}
-
-                    {asset.asset_type === "PRICE_DISCOUNT_BAR" && (
-                      <PriceDiscountChart
-                        items={
-                          (asset.metadata?.items as Array<{
-                            label: string;
-                            list_price: number;
-                            sale_price: number;
-                            discount_pct?: number;
-                          }>) ?? []
-                        }
-                        unit={String(asset.metadata?.unit ?? "만원")}
-                      />
-                    )}
-
-                    {asset.asset_type === "PRESS_MONTHLY_BAR" && (
-                      <PressMonthlyChart
-                        items={
-                          (asset.metadata?.items as Array<{
-                            label: string;
-                            value: number;
-                            highlight?: boolean;
-                          }>) ?? []
-                        }
-                      />
-                    )}
-
-                    {asset.asset_type === "PRESS_BRAND_BAR" && (
-                      <PressBrandCompareChart
-                        items={
-                          (asset.metadata?.items as Array<{
-                            label: string;
-                            value: number;
-                            highlight?: boolean;
-                          }>) ?? []
-                        }
-                      />
-                    )}
-
-                    {asset.asset_type === "MARKETING_HEATMAP" && (
-                      <MarketingHeatmapChart
-                        brands={(asset.metadata?.brands as string[]) ?? []}
-                        rows={
-                          (asset.metadata?.rows as Array<{
-                            axis: string;
-                            scores: Array<{ brand: string; score: number }>;
-                          }>) ?? []
-                        }
-                      />
-                    )}
-
-                    {asset.asset_type === "CONSUMER_KBF_CHART" && (
-                      <VocSentimentChart
-                        positive={Number(asset.metadata?.positive ?? 60)}
-                        negative={Number(asset.metadata?.negative ?? 22)}
-                        neutral={Number(asset.metadata?.neutral ?? 18)}
-                        compact
-                      />
-                    )}
-
-                    {asset.caption && (
-                      <p className="mt-2 text-[12px] text-[#737373]">
-                        {asset.caption}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {slide.bullets.length > 0 && (
-              <div
-                className={`space-y-2.5 ${
-                  chartAssets.length > 0 ? "lg:col-span-6" : "col-span-1"
-                }`}
-              >
-                {slide.bullets.map((bullet, idx) => (
-                  <div
-                    key={idx}
-                    className="rounded-[8px] border border-[#E5E5E5] bg-[#FAFAFA] px-3.5 py-2.5"
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#111111]" />
-                      <div className="min-w-0 flex-1 space-y-1.5">
-                        <p className="text-[13px] font-medium leading-relaxed text-[#111111]">
-                          {bullet.claim}
-                        </p>
-                        {(bullet.source_name || bullet.evidence_quote || bullet.source_url) && (
-                          <div className="flex flex-wrap items-center gap-2 text-[12px]">
-                            {bullet.fact_id ? (
-                              <button
-                                type="button"
-                                onClick={() => onSelectFact?.(bullet.fact_id!)}
-                                className="inline-flex items-center gap-1.5 rounded-[6px] border border-[#E5E5E5] bg-white px-2 py-0.5 font-semibold text-[#111111] hover:border-[#111111] cursor-pointer"
-                              >
-                                <ChannelGlyph
-                                  channelKey={normalizeChannelKey(bullet.source_name)}
-                                  size={14}
-                                />
-                                <Link2 className="h-3 w-3 text-[#737373]" />
-                                <span>{bullet.source_name ?? bullet.fact_id}</span>
-                              </button>
-                            ) : (
-                              bullet.source_name && (
-                                <ChannelBadge
-                                  channel={bullet.source_name}
-                                  labelOverride={bullet.source_name}
-                                  compact
-                                />
-                              )
-                            )}
-                            {bullet.source_url && isHttpUrl(bullet.source_url) && (
-                              <a
-                                href={bullet.source_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1 rounded-[6px] border border-[#F9C8B8] bg-[#FFF8F5] px-2 py-0.5 font-semibold text-[#E9501F] hover:bg-[#FFF0EA]"
-                              >
-                                <ExternalLink className="h-3 w-3" />
-                                {formatUrlHost(bullet.source_url)}
-                              </a>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {slide.table && (
-            <div className="overflow-x-auto rounded-[8px] border border-[#E5E5E5]">
-              <table className="w-full text-left text-[13px]">
-                <thead className="border-b border-[#E5E5E5] bg-[#F5F5F5] text-[#111111]">
-                  <tr>
-                    {slide.table.headers.map((header, idx) => (
-                      <th key={idx} className="px-3 py-2 font-bold">
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#E5E5E5]">
-                  {slide.table.rows.map((row, rIdx) => (
-                    <tr key={rIdx} className="bg-white">
-                      {row.map((cell, cIdx) => {
-                        const trimmed = String(cell ?? "").trim();
-                        const headerName = slide.table?.headers[cIdx] ?? "";
-                        const isChannelCol =
-                          headerName.includes("채널") || headerName.includes("플랫폼");
-                        const isPagePillCol = isIndex && headerName.includes("페이지");
-
-                        return (
-                          <td
-                            key={cIdx}
-                            className={`px-3 py-2 ${
-                              cIdx === 0
-                                ? "font-semibold text-[#111111]"
-                                : "text-[#4A4A4A]"
-                            }`}
-                          >
-                            {isHttpUrl(trimmed) ? (
-                              <a
-                                href={trimmed}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1 font-semibold text-[#E9501F] underline decoration-[#E9501F]/40 underline-offset-2 hover:text-[#111111]"
-                              >
-                                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                                <span>{formatUrlHost(trimmed)}</span>
-                              </a>
-                            ) : isPagePillCol ? (
-                              <span className="inline-flex rounded-[6px] bg-[#FFF3EE] px-2 py-0.5 font-mono text-[12px] font-bold text-[#E9501F]">
-                                {trimmed}
-                              </span>
-                            ) : isChannelCol && isRecognizedChannelLabel(trimmed) ? (
-                              <ChannelBadge channel={trimmed} labelOverride={trimmed} compact />
-                            ) : (
-                              trimmed
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {slide.as_is_to_be && (
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-[8px] border border-[#E5E5E5] bg-[#FAFAFA] p-3.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-[#4A4A4A]">
-                    AS-IS 현황
-                  </span>
+          ) : isAsIsToBe && slide.as_is_to_be ? (
+            <div className="grid h-full grid-cols-3 gap-3.5">
+              <div className="flex flex-col rounded-[8px] border border-[#E5E5E5] bg-[#FAFAFA] p-4">
+                <div className="flex shrink-0 items-center justify-between border-b border-[#E5E5E5] pb-2">
+                  <span className="text-[13px] font-bold text-[#4A4A4A]">AS-IS 현황</span>
                   <ArrowRight className="h-4 w-4 text-[#8C8C8C]" />
                 </div>
-                <ul className="mt-2 space-y-1.5">
+                <ul className="mt-3 space-y-2.5 overflow-auto">
                   {slide.as_is_to_be.as_is_points.map((pt, idx) => (
-                    <li
-                      key={idx}
-                      className="text-[13px] leading-relaxed text-[#111111]"
-                    >
+                    <li key={idx} className="text-[13px] leading-relaxed text-[#111111]">
                       • {pt}
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <div className="rounded-[8px] border border-[#F5D8A8] bg-[#FFFBEB] p-3.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-[#C26B00]">
-                    핵심 과제
-                  </span>
+              <div className="flex flex-col rounded-[8px] border border-[#F5D8A8] bg-[#FFFBEB] p-4">
+                <div className="flex shrink-0 items-center justify-between border-b border-[#F5D8A8] pb-2">
+                  <span className="text-[13px] font-bold text-[#C26B00]">KEY ISSUE (핵심 과제)</span>
                   <ArrowRight className="h-4 w-4 text-[#C26B00]" />
                 </div>
-                <ul className="mt-2 space-y-1.5">
+                <ul className="mt-3 space-y-2.5 overflow-auto">
                   {slide.as_is_to_be.key_issues.map((pt, idx) => (
-                    <li
-                      key={idx}
-                      className="text-[13px] font-medium leading-relaxed text-[#111111]"
-                    >
+                    <li key={idx} className="text-[13px] font-medium leading-relaxed text-[#111111]">
                       • {pt}
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <div className="rounded-[8px] border border-[#111111] bg-white p-3.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-[#111111]">
-                    TO-BE 방향
-                  </span>
+              <div className="flex flex-col rounded-[8px] border border-[#111111] bg-white p-4">
+                <div className="flex shrink-0 items-center justify-between border-b border-[#E5E5E5] pb-2">
+                  <span className="text-[13px] font-bold text-[#111111]">TO-BE (전략 방향)</span>
                 </div>
-                <ul className="mt-2 space-y-1.5">
+                <ul className="mt-3 space-y-2.5 overflow-auto">
                   {slide.as_is_to_be.to_be_directions.map((pt, idx) => (
-                    <li
-                      key={idx}
-                      className="text-[13px] font-semibold leading-relaxed text-[#111111]"
-                    >
+                    <li key={idx} className="text-[13px] font-semibold leading-relaxed text-[#111111]">
                       • {pt}
                     </li>
                   ))}
                 </ul>
               </div>
+            </div>
+          ) : hasChart && hasTable && slide.table ? (
+            <div className="grid h-full grid-cols-12 gap-3">
+              <div className="col-span-6 min-h-0">
+                {renderChartAsset(chartAssets[0], bundle)}
+              </div>
+              <div className="col-span-6 min-h-0">{renderTable(slide.table)}</div>
+            </div>
+          ) : hasChart ? (
+            <div className="grid h-full grid-cols-12 gap-3">
+              <div className={slide.bullets.length > 0 ? "col-span-7 min-h-0" : "col-span-12 min-h-0"}>
+                {renderChartAsset(chartAssets[0], bundle)}
+              </div>
+              {slide.bullets.length > 0 && (
+                <div className="col-span-5 flex min-h-0 flex-col justify-center gap-2 overflow-auto">
+                  {slide.bullets.slice(0, 3).map((b, i) => renderBulletCard(b, i))}
+                </div>
+              )}
+            </div>
+          ) : hasTable && slide.table ? (
+            <div className="h-full min-h-0">{renderTable(slide.table)}</div>
+          ) : (
+            <div className="grid h-full grid-cols-1 gap-2.5 overflow-auto">
+              {slide.bullets.map((b, i) => renderBulletCard(b, i))}
             </div>
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-[#E5E5E5] pt-2.5 text-[12px] text-[#737373]">
+        {/* Bottom 3-Column '관찰된 특징' Strip (matches PPTX 1:1) */}
+        {showBottomInsightStrip && (
+          <div className="mb-2 shrink-0 rounded-[8px] border border-[#E5E5E5] bg-[#F5F5F5] px-3 py-2">
+            <div className="flex items-stretch gap-3">
+              <div className="flex w-16 shrink-0 flex-col justify-center border-r border-[#D4D4D4] pr-2 text-[12px] font-extrabold leading-tight text-[#E9501F]">
+                <span>관찰된</span>
+                <span>특징</span>
+              </div>
+              <div className="grid min-w-0 flex-1 grid-cols-3 gap-2.5">
+                {slide.bullets.slice(0, 3).map((b, i) => renderBulletCard(b, i, true))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Footnote Bar */}
+        <div className="flex shrink-0 items-center justify-between border-t border-[#E5E5E5] pt-2 text-[12px] text-[#737373]">
           <span className="truncate">
             {slide.footnote ??
               `출처: ${bundle.project.brand_name} 팩트북 수집 자료 (${bundle.project.period_start} ~ ${bundle.project.period_end})`}
@@ -779,6 +849,6 @@ export function SlideCanvas({
           </span>
         </div>
       </div>
-    </div>
+    </SlideStage>
   );
 }

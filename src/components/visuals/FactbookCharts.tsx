@@ -76,7 +76,7 @@ export function DataLabTrendChart({
   });
 
   return (
-    <div className={compact ? "h-44 w-full" : "h-64 w-full"}>
+    <div className={compact ? "h-[205px] w-full" : "h-64 w-full"}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={chartData}
@@ -172,7 +172,7 @@ export function DataLabSosBarChart({
       shoppingSos: shoppingMap.get(label)?.share_of_search_pct ?? 0,
     }));
     return (
-      <div className={compact ? "h-48 w-full" : "h-64 w-full"}>
+      <div className={compact ? "h-[205px] w-full" : "h-64 w-full"}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={groupedData}
@@ -251,7 +251,7 @@ export function DataLabSosBarChart({
   }));
 
   return (
-    <div className={compact ? "h-44 w-full" : "h-64 w-full"}>
+    <div className={compact ? "h-[205px] w-full" : "h-64 w-full"}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={barData}
@@ -380,7 +380,7 @@ export function HorizontalDataBarChart({
   }
 
   return (
-    <div className="h-44 w-full">
+    <div className="h-[205px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={items}
@@ -450,12 +450,12 @@ export function PriceDiscountChart({
   }
 
   return (
-    <div className="h-56 w-full">
+    <div className="h-[205px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={items}
           layout="vertical"
-          margin={{ top: 6, right: 24, left: 10, bottom: 4 }}
+          margin={{ top: 4, right: 24, left: 10, bottom: 2 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" horizontal={false} />
           <XAxis
@@ -512,9 +512,9 @@ export function PressMonthlyChart({
   const peakVal = Math.max(...items.map((i) => Number(i.value || 0)), 0);
 
   return (
-    <div className="h-52 w-full">
+    <div className="h-[205px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={items} margin={{ top: 8, right: 16, left: -12, bottom: 4 }}>
+        <BarChart data={items} margin={{ top: 6, right: 16, left: -12, bottom: 2 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" vertical={false} />
           <XAxis
             dataKey="label"
@@ -590,9 +590,9 @@ export function MarketingHeatmapChart({
       <table className="w-full border-collapse text-[12px]">
         <thead>
           <tr className="border-b border-[#E5E5E5]">
-            <th className="py-2 pr-3 text-left font-bold text-[#111111]">마케팅 6분류</th>
+            <th className="py-1 pr-2.5 text-left font-bold text-[#111111]">마케팅 6분류</th>
             {brands.map((b) => (
-              <th key={b} className="px-2 py-2 text-center font-bold text-[#111111]">
+              <th key={b} className="px-1.5 py-1 text-center font-bold text-[#111111]">
                 {b}
               </th>
             ))}
@@ -601,7 +601,7 @@ export function MarketingHeatmapChart({
         <tbody className="divide-y divide-[#E5E5E5]">
           {rows.map((row) => (
             <tr key={row.axis}>
-              <td className="py-2 pr-3 font-semibold text-[#111111] whitespace-nowrap">
+              <td className="py-1 pr-2.5 font-semibold text-[#111111] whitespace-nowrap">
                 {row.axis}
               </td>
               {brands.map((b, idx) => {
@@ -609,9 +609,9 @@ export function MarketingHeatmapChart({
                 const sc = Number(matched?.score ?? 1);
                 const st = scoreStyle(sc);
                 return (
-                  <td key={`${row.axis}-${b}`} className="p-1.5 text-center">
+                  <td key={`${row.axis}-${b}`} className="p-1 text-center">
                     <div
-                      className="mx-auto flex h-7 min-w-[74px] items-center justify-center rounded-[6px] border border-[#E5E5E5] px-2 font-bold tabular-nums"
+                      className="mx-auto flex h-6 min-w-[66px] items-center justify-center rounded-[5px] border border-[#E5E5E5] px-1.5 text-[12px] font-bold tabular-nums"
                       style={{ backgroundColor: st.bg, color: st.text }}
                     >
                       {st.label}
