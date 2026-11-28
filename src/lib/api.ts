@@ -327,6 +327,21 @@ export const factbookApi = {
       body: JSON.stringify(payload),
     }),
 
+  generateSlidesAsync: (
+    projectId: string,
+    payload: { summary_split_mode?: SummarySplitMode; use_approved_only?: boolean } = {}
+  ) =>
+    apiFetch<JobStatusResponse>(`/api/v1/projects/${projectId}/slides/generate-async`, {
+      method: "POST",
+      withIdempotency: true,
+      body: JSON.stringify(payload),
+    }),
+
+  getSlideGenerationStatus: (projectId: string) =>
+    apiFetch<JobStatusResponse | null>(
+      `/api/v1/projects/${projectId}/slides/generation-status`
+    ),
+
   listSlides: (projectId: string) =>
     apiFetch<SlideDraft[]>(`/api/v1/projects/${projectId}/slides`),
 

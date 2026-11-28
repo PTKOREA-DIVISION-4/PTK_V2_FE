@@ -326,6 +326,7 @@ export interface ProjectBundle {
   sns_top_posts: SnsTopPost[];
   slides: SlideDraft[];
   last_job: JobStatusResponse;
+  slide_gen_job?: JobStatusResponse | null;
   exports: ExportRecord[];
   active_comment_diffs: Record<string, CommentDiffResponse>;
   workflow_meta?: WorkflowMeta;

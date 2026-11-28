@@ -9,6 +9,7 @@ import {
   type InspectorTab,
 } from "@/features/fact-review/RightInspector";
 import { SlideCanvas } from "@/features/fact-review/SlideCanvas";
+import { SlideGenerationMonitor } from "@/features/fact-review/SlideGenerationMonitor";
 import { useFactbookStore } from "@/lib/store";
 import {
   SECTION_LABELS,
@@ -146,12 +147,28 @@ export function FactReviewStudio({
     }
   };
 
+  const isGeneratingSlides =
+    bundle.slide_gen_job?.status === "RUNNING" ||
+    bundle.slide_gen_job?.status === "PENDING";
+
   const handleSelectFact = (factId: string) => {
     setFocusedFactId(factId);
     setInspectorTab("EVIDENCE");
   };
 
   if (sortedSlides.length === 0 || !currentSlide) {
+    if (isGeneratingSlides && bundle.slide_gen_job) {
+      return (
+        <div className="min-h-[calc(100vh-84px)] overflow-y-auto bg-[#F5F5F5]">
+          <SlideGenerationMonitor
+            job={bundle.slide_gen_job}
+            slideCount={0}
+            mode="full"
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center justify-center py-24 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-[12px] border border-[#E5E5E5] bg-white text-[#111111]">
@@ -264,6 +281,8 @@ export function FactReviewStudio({
                           ? "AI"
                           : "초안";
 
+                    const isCoverThumb = sl.slide_type === "COVER";
+                    const isIndexThumb = sl.slide_type === "INDEX";
                     return (
                       <div
                         key={sl.id}
@@ -275,23 +294,35 @@ export function FactReviewStudio({
                         <button
                           type="button"
                           onClick={() => onSelectSlide(sl.id)}
-                          className={`relative aspect-[16/9] w-full overflow-hidden rounded-[6px] bg-white p-2 text-left transition-all cursor-pointer ${
+                          className={`relative aspect-[16/9] w-full overflow-hidden rounded-[6px] p-2 text-left transition-all cursor-pointer ${
+                            isCoverThumb
+                              ? "bg-[#111111] text-white"
+                              : "bg-white text-[#111111]"
+                          } ${
                             active
                               ? "border border-transparent ring-2 ring-[#111111]"
-                              : "border border-[#D4D4D4] hover:border-[#8C8C8C]"
+                              : isCoverThumb
+                                ? "border border-[#262626] hover:border-[#E9501F]"
+                                : "border border-[#D4D4D4] hover:border-[#8C8C8C]"
                           }`}
                         >
                           <span
                             className="block h-[2px] w-4"
                             style={{
                               backgroundColor:
+                                isCoverThumb ||
+                                isIndexThumb ||
                                 bundle.project.analysis_track === "REVIEW_CENTRIC"
                                   ? "#E9501F"
                                   : "#111111",
                             }}
                           />
-                          <p className="mt-1 line-clamp-2 text-[9px] font-semibold leading-tight text-[#111111]">
-                            {sl.title}
+                          <p
+                            className={`mt-1 line-clamp-2 text-[9px] font-semibold leading-tight ${
+                              isCoverThumb ? "text-white" : "text-[#111111]"
+                            }`}
+                          >
+                            {isCoverThumb ? `표지 · ${sl.title}` : isIndexThumb ? "INDEX 목차" : sl.title}
                           </p>
                           <span
                             className={`absolute right-1 bottom-1 rounded-[6px] border bg-white/95 px-1.5 py-[1px] text-[9px] font-medium whitespace-nowrap ${stateCls}`}
@@ -311,11 +342,19 @@ export function FactReviewStudio({
 
       {/* CENTER CANVAS STAGE + BOTTOM BAR */}
       <section className="flex min-w-0 min-h-0 flex-col bg-[#F5F5F5]">
+        {isGeneratingSlides && bundle.slide_gen_job && (
+          <SlideGenerationMonitor
+            job={bundle.slide_gen_job}
+            slideCount={sortedSlides.length}
+            mode="banner"
+          />
+        )}
         <div className="flex flex-1 min-h-0 items-center justify-center overflow-hidden p-4 lg:p-5">
           <SlideCanvas
             slide={currentSlide}
             bundle={bundle}
             onSelectFact={handleSelectFact}
+            onSelectSlide={onSelectSlide}
           />
         </div>
 
